@@ -33,6 +33,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Bayar IPL", href: "/dashboard/bayar", icon: <CreditCard className="h-5 w-5" /> },
   { title: "Riwayat Pembayaran", href: "/dashboard/riwayat", icon: <FileText className="h-5 w-5" /> },
   { title: "Profil", href: "/dashboard/profile", icon: <UserCircle className="h-5 w-5" /> },
+  { title: "Manajemen User", href: "/dashboard/users", icon: <Users className="h-5 w-5" />, adminOnly: true },
   { title: "Verifikasi Pembayaran", href: "/dashboard/verifikasi", icon: <Users className="h-5 w-5" />, adminOnly: true },
   { title: "Pengeluaran", href: "/dashboard/pengeluaran", icon: <Wallet className="h-5 w-5" />, adminOnly: true },
   { title: "Jenis Iuran", href: "/dashboard/jenis-iuran", icon: <CreditCard className="h-5 w-5" />, adminOnly: true },

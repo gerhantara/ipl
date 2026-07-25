@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, Save, AlertCircle, CheckCircle2 } from "lucide-react";
+import { User, Mail, Save, AlertCircle, CheckCircle2, KeyRound, Eye, EyeOff } from "lucide-react";
 
 export default function ProfilePage() {
   const supabase = createClient();
@@ -25,9 +25,17 @@ export default function ProfilePage() {
   // Email change
   const [newEmail, setNewEmail] = useState("");
 
+  // Password change
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
   // Messages
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [emailMsg, setEmailMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -87,6 +95,34 @@ export default function ProfilePage() {
       setProfileMsg({ type: "success", text: "Profil berhasil diperbarui." });
     }
     setSaving(false);
+  };
+
+  const handlePasswordChange = async () => {
+    setSavingPassword(true);
+    setPasswordMsg(null);
+
+    if (newPassword.length < 6) {
+      setPasswordMsg({ type: "error", text: "Password baru minimal harus 6 karakter." });
+      setSavingPassword(false);
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ type: "error", text: "Konfirmasi password tidak cocok." });
+      setSavingPassword(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      setPasswordMsg({ type: "error", text: error.message });
+    } else {
+      setPasswordMsg({ type: "success", text: "Password berhasil diubah." });
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+    setSavingPassword(false);
   };
 
   const handleEmailChange = async () => {
@@ -212,7 +248,7 @@ export default function ProfilePage() {
             <Mail className="h-5 w-5" /> Ubah Email
           </CardTitle>
           <CardDescription>
-            Email digunakan untuk login. Perubahan email memerlukan konfirmasi melalui email lama dan baru.
+            Email digunakan untuk login.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -248,7 +284,88 @@ export default function ProfilePage() {
 
           <Button onClick={handleEmailChange} disabled={savingEmail || newEmail.trim() === currentEmail}>
             <Mail className="h-4 w-4 mr-1" />
-            {savingEmail ? "Memproses..." : "Kirim Konfirmasi Ubah Email"}
+            {savingEmail ? "Memproses..." : "Simpan"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Password Change Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5" /> Ubah Password
+          </CardTitle>
+          <CardDescription>
+            Pastikan password baru minimal 6 karakter.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="new_password">Password Baru</Label>
+            <div className="relative">
+              <Input
+                id="new_password"
+                type={showPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Masukkan password baru"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirm_password">Konfirmasi Password Baru</Label>
+            <div className="relative">
+              <Input
+                id="confirm_password"
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Ulangi password baru"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Message */}
+          {passwordMsg && (
+            <div className={`flex items-start gap-2 text-sm p-3 rounded-md ${
+              passwordMsg.type === "success"
+                ? "bg-green-50 text-green-700 border border-green-200"
+                : "bg-destructive/10 text-destructive border border-destructive/20"
+            }`}>
+              {passwordMsg.type === "success" ? (
+                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              )}
+              <span>{passwordMsg.text}</span>
+            </div>
+          )}
+
+          <Button
+            onClick={handlePasswordChange}
+            disabled={savingPassword || !newPassword || !confirmPassword}
+          >
+            <KeyRound className="h-4 w-4 mr-1" />
+            {savingPassword ? "Memproses..." : "Ubah Password"}
           </Button>
         </CardContent>
       </Card>
