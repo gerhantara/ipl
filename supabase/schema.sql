@@ -26,6 +26,26 @@ CREATE POLICY "Users can insert their own profile" ON public.profiles
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
+-- Function to prevent non-admin from changing role
+CREATE OR REPLACE FUNCTION public.prevent_role_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Allow role change only if the current user is an admin
+  IF NEW.role IS DISTINCT FROM OLD.role THEN
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin') THEN
+      RAISE EXCEPTION 'Hanya admin yang dapat mengubah role pengguna';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to enforce role change restriction
+DROP TRIGGER IF EXISTS prevent_role_change_trigger ON public.profiles;
+CREATE TRIGGER prevent_role_change_trigger
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_role_change();
+
 -- Jenis Iuran table
 CREATE TABLE IF NOT EXISTS public.jenis_iuran (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
