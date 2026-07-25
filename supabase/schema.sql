@@ -123,10 +123,9 @@ CREATE POLICY "Only admin can manage rekening" ON public.rekening
   );
 
 -- Policies for pembayaran
-CREATE POLICY "Users can view their own pembayaran" ON public.pembayaran
-  FOR SELECT USING (auth.uid() = user_id OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-  );
+DROP POLICY IF EXISTS "Users can view their own pembayaran" ON public.pembayaran;
+CREATE POLICY "Authenticated users can view all pembayaran" ON public.pembayaran
+  FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "Users can insert pembayaran" ON public.pembayaran
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Admin can update pembayaran" ON public.pembayaran

@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Plus, Pencil, KeyRound, UserX, UserCheck, Eye, EyeOff, AlertCircle, CheckCircle2, Search } from "lucide-react";
+import { Users, Plus, Pencil, KeyRound, UserX, UserCheck, Eye, EyeOff, AlertCircle, CheckCircle2, Search, Upload, FileDown, FileSpreadsheet, X, Check, AlertTriangle } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -83,6 +83,19 @@ export default function UsersPage() {
   
   // Deactivate user
   const [deactivateUser, setDeactivateUser] = useState<UserProfile | null>(null);
+
+  // Upload state
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{
+    summary: { total: number; created: number; failed: number; skipped: number };
+    details: {
+      success: { email: string; full_name: string }[];
+      failed: { email: string; reason: string }[];
+      skipped: { email: string; reason: string }[];
+    };
+  } | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -286,6 +299,71 @@ export default function UsersPage() {
     setShowDeactivateDialog(true);
   };
 
+  // Upload handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadFile(file);
+      setUploadResult(null);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile) return;
+    setUploading(true);
+    setUploadResult(null);
+
+    const formData = new FormData();
+    formData.append("file", uploadFile);
+
+    try {
+      const response = await fetch("/api/admin/users/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setMsg({ type: "error", text: result.error || "Gagal mengupload file." });
+      } else {
+        setUploadResult(result);
+        fetchUsers();
+      }
+    } catch (error) {
+      setMsg({ type: "error", text: "Terjadi kesalahan saat mengupload." });
+    }
+    setUploading(false);
+  };
+
+  const resetUploadDialog = () => {
+    setUploadFile(null);
+    setUploadResult(null);
+    setMsg(null);
+  };
+
+  const downloadTemplate = () => {
+    const templateData = [
+      { email: "warga1@email.com", full_name: "Nama Warga 1", phone: "081234567890", blok_rumah: "A1", role: "warga" },
+      { email: "warga2@email.com", full_name: "Nama Warga 2", phone: "081234567891", blok_rumah: "A2", role: "warga" },
+      { email: "warga3@email.com", full_name: "Nama Warga 3", phone: "081234567892", blok_rumah: "B1", role: "warga" },
+    ];
+
+    // Create CSV content
+    const headers = ["email", "full_name", "phone", "blok_rumah", "role"];
+    const csvContent = [
+      headers.join(","),
+      ...templateData.map(row => headers.map(h => row[h as keyof typeof row]).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "template_data_warga.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
   const filteredUsers = users.filter((user) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -310,9 +388,17 @@ export default function UsersPage() {
           <h2 className="text-2xl font-bold tracking-tight">Manajemen User</h2>
           <p className="text-muted-foreground">Kelola akun dan data warga</p>
         </div>
-        <Button onClick={() => { resetAddForm(); setShowAddDialog(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> Tambah User
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => { resetUploadDialog(); setShowUploadDialog(true); }}
+          >
+            <Upload className="h-4 w-4 mr-1" /> Upload Excel
+          </Button>
+          <Button onClick={() => { resetAddForm(); setShowAddDialog(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Tambah User
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -672,6 +758,171 @@ export default function UsersPage() {
               {saving ? "Memproses..." : "Nonaktifkan"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Excel Dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Upload Data Warga</DialogTitle>
+            <DialogDescription>
+              Upload file Excel (.xlsx/.xls) berisi data warga untuk dibuatkan akun secara otomatis.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Download Template Button */}
+            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+              <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Download Template</p>
+                <p className="text-xs text-muted-foreground">Gunakan template ini untuk format yang benar</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={downloadTemplate}>
+                <FileDown className="h-4 w-4 mr-1" /> Download CSV
+              </Button>
+            </div>
+
+            {/* File Upload */}
+            <div className="space-y-2">
+              <Label>Pilih File Excel</Label>
+              <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                <Input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer flex flex-col items-center gap-2"
+                >
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {uploadFile ? uploadFile.name : "Klik untuk memilih file atau drag & drop"}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Format: .xlsx atau .xls
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Column Info */}
+            <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
+              <p className="font-medium mb-1">Kolom yang diperlukan:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-xs">
+                <li><strong>email</strong> - Alamat email warga (wajib)</li>
+                <li><strong>full_name</strong> atau <strong>nama</strong> - Nama lengkap</li>
+                <li><strong>phone</strong> atau <strong>telepon</strong> - Nomor telepon</li>
+                <li><strong>blok_rumah</strong> atau <strong>blok</strong> - Blok rumah</li>
+                <li><strong>role</strong> - Role (warga/admin), default: warga</li>
+              </ul>
+            </div>
+
+            {/* Error Message */}
+            {msg && (
+              <div className={`flex items-start gap-2 text-sm p-3 rounded-md ${
+                msg.type === "success"
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-destructive/10 text-destructive border border-destructive/20"
+              }`}>
+                {msg.type === "success" ? (
+                  <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                )}
+                <span>{msg.text}</span>
+              </div>
+            )}
+
+            {/* Upload Result */}
+            {uploadResult && (
+              <div className="space-y-3 border rounded-lg p-4">
+                <h4 className="font-medium">Hasil Upload</h4>
+                
+                {/* Summary */}
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="bg-muted rounded-lg p-2">
+                    <p className="text-2xl font-bold">{uploadResult.summary.total}</p>
+                    <p className="text-xs text-muted-foreground">Total</p>
+                  </div>
+                  <div className="bg-green-100 rounded-lg p-2">
+                    <p className="text-2xl font-bold text-green-700">{uploadResult.summary.created}</p>
+                    <p className="text-xs text-green-600">Berhasil</p>
+                  </div>
+                  <div className="bg-yellow-100 rounded-lg p-2">
+                    <p className="text-2xl font-bold text-yellow-700">{uploadResult.summary.skipped}</p>
+                    <p className="text-xs text-yellow-600">Duplikat</p>
+                  </div>
+                  <div className="bg-red-100 rounded-lg p-2">
+                    <p className="text-2xl font-bold text-red-700">{uploadResult.summary.failed}</p>
+                    <p className="text-xs text-red-600">Gagal</p>
+                  </div>
+                </div>
+
+                {/* Success List */}
+                {uploadResult.details.success.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-green-700 flex items-center gap-1">
+                      <Check className="h-4 w-4" /> Berhasil Dibuat ({uploadResult.details.success.length})
+                    </p>
+                    <div className="max-h-24 overflow-y-auto text-xs bg-green-50 rounded p-2">
+                      {uploadResult.details.success.map((item, i) => (
+                        <div key={i} className="flex justify-between">
+                          <span>{item.full_name}</span>
+                          <span className="text-muted-foreground">{item.email}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Skipped List */}
+                {uploadResult.details.skipped.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-yellow-700 flex items-center gap-1">
+                      <AlertTriangle className="h-4 w-4" /> Duplikat ({uploadResult.details.skipped.length})
+                    </p>
+                    <div className="max-h-24 overflow-y-auto text-xs bg-yellow-50 rounded p-2">
+                      {uploadResult.details.skipped.map((item, i) => (
+                        <div key={i} className="flex justify-between">
+                          <span>{item.email}</span>
+                          <span className="text-muted-foreground">{item.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Failed List */}
+                {uploadResult.details.failed.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-red-700 flex items-center gap-1">
+                      <X className="h-4 w-4" /> Gagal ({uploadResult.details.failed.length})
+                    </p>
+                    <div className="max-h-24 overflow-y-auto text-xs bg-red-50 rounded p-2">
+                      {uploadResult.details.failed.map((item, i) => (
+                        <div key={i} className="flex justify-between">
+                          <span>{item.email}</span>
+                          <span className="text-muted-foreground">{item.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowUploadDialog(false)}>Tutup</Button>
+              <Button onClick={handleUpload} disabled={!uploadFile || uploading}>
+                {uploading ? "Mengupload..." : "Upload"}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
