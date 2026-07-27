@@ -38,6 +38,7 @@ interface UserProfile {
   full_name: string | null;
   phone: string | null;
   blok_rumah: string | null;
+  status_kepemilikan: string | null;
   role: string;
   created_at: string;
   updated_at: string;
@@ -65,6 +66,7 @@ export default function UsersPage() {
   const [newFullName, setNewFullName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newBlokRumah, setNewBlokRumah] = useState("");
+  const [newStatusKepemilikan, setNewStatusKepemilikan] = useState("milik_sendiri");
   const [newRole, setNewRole] = useState("warga");
   const [showNewPassword, setShowNewPassword] = useState(false);
   
@@ -73,6 +75,7 @@ export default function UsersPage() {
   const [editFullName, setEditFullName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editBlokRumah, setEditBlokRumah] = useState("");
+  const [editStatusKepemilikan, setEditStatusKepemilikan] = useState("milik_sendiri");
   const [editRole, setEditRole] = useState("warga");
   
   // Password change form
@@ -122,6 +125,7 @@ export default function UsersPage() {
     setNewFullName("");
     setNewPhone("");
     setNewBlokRumah("");
+    setNewStatusKepemilikan("milik_sendiri");
     setNewRole("warga");
     setShowNewPassword(false);
     setMsg(null);
@@ -153,6 +157,7 @@ export default function UsersPage() {
           full_name: newFullName.trim() || newEmail.trim(),
           phone: newPhone.trim(),
           blok_rumah: newBlokRumah.trim(),
+          status_kepemilikan: newStatusKepemilikan,
           role: newRole,
         }),
       });
@@ -187,6 +192,7 @@ export default function UsersPage() {
         full_name: editFullName.trim(),
         phone: editPhone.trim(),
         blok_rumah: editBlokRumah.trim(),
+        status_kepemilikan: editStatusKepemilikan,
         role: editRole,
         updated_at: new Date().toISOString(),
       })
@@ -279,6 +285,7 @@ export default function UsersPage() {
     setEditFullName(user.full_name || "");
     setEditPhone(user.phone || "");
     setEditBlokRumah(user.blok_rumah || "");
+    setEditStatusKepemilikan(user.status_kepemilikan || "milik_sendiri");
     setEditRole(user.role);
     setMsg(null);
     setShowEditDialog(true);
@@ -344,13 +351,13 @@ export default function UsersPage() {
 
   const downloadTemplate = () => {
     const templateData = [
-      { email: "warga1@email.com", full_name: "Nama Warga 1", phone: "081234567890", blok_rumah: "A1", role: "warga" },
-      { email: "warga2@email.com", full_name: "Nama Warga 2", phone: "081234567891", blok_rumah: "A2", role: "warga" },
-      { email: "warga3@email.com", full_name: "Nama Warga 3", phone: "081234567892", blok_rumah: "B1", role: "warga" },
+      { email: "warga1@email.com", full_name: "Nama Warga 1", phone: "081234567890", blok_rumah: "A1", status_kepemilikan: "milik_sendiri", role: "warga" },
+      { email: "warga2@email.com", full_name: "Nama Warga 2", phone: "081234567891", blok_rumah: "A2", status_kepemilikan: "kontrak", role: "warga" },
+      { email: "warga3@email.com", full_name: "Nama Warga 3", phone: "081234567892", blok_rumah: "B1", status_kepemilikan: "milik_sendiri", role: "warga" },
     ];
 
     // Create CSV content
-    const headers = ["email", "full_name", "phone", "blok_rumah", "role"];
+    const headers = ["email", "full_name", "phone", "blok_rumah", "status_kepemilikan", "role"];
     const csvContent = [
       headers.join(","),
       ...templateData.map(row => headers.map(h => row[h as keyof typeof row]).join(","))
@@ -430,6 +437,7 @@ export default function UsersPage() {
                   <TableHead>Nama</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Blok Rumah</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Telepon</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead className="text-center">Aksi</TableHead>
@@ -444,6 +452,13 @@ export default function UsersPage() {
                       {user.blok_rumah ? (
                         <Badge variant="secondary">{user.blok_rumah}</Badge>
                       ) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {user.status_kepemilikan === "kontrak" ? (
+                        <Badge variant="outline">Kontrak</Badge>
+                      ) : (
+                        <Badge variant="secondary">Milik Sendiri</Badge>
+                      )}
                     </TableCell>
                     <TableCell>{user.phone || "-"}</TableCell>
                     <TableCell>
@@ -555,6 +570,18 @@ export default function UsersPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="add_kepemilikan">Status Kepemilikan</Label>
+              <Select value={newStatusKepemilikan} onValueChange={setNewStatusKepemilikan}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="milik_sendiri">Milik Sendiri</SelectItem>
+                  <SelectItem value="kontrak">Kontrak</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="add_role">Role</Label>
               <Select value={newRole} onValueChange={setNewRole}>
                 <SelectTrigger>
@@ -630,6 +657,18 @@ export default function UsersPage() {
                 onChange={(e) => setEditBlokRumah(e.target.value)}
                 placeholder="A1, B12, dll"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_kepemilikan">Status Kepemilikan</Label>
+              <Select value={editStatusKepemilikan} onValueChange={setEditStatusKepemilikan}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="milik_sendiri">Milik Sendiri</SelectItem>
+                  <SelectItem value="kontrak">Kontrak</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_role">Role</Label>
@@ -818,6 +857,7 @@ export default function UsersPage() {
                 <li><strong>full_name</strong> atau <strong>nama</strong> - Nama lengkap</li>
                 <li><strong>phone</strong> atau <strong>telepon</strong> - Nomor telepon</li>
                 <li><strong>blok_rumah</strong> atau <strong>blok</strong> - Blok rumah</li>
+                <li><strong>status_kepemilikan</strong> - Status (milik_sendiri/kontrak), default: milik_sendiri</li>
                 <li><strong>role</strong> - Role (warga/admin), default: warga</li>
               </ul>
             </div>

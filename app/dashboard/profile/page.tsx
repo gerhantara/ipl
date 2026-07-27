@@ -19,6 +19,7 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [blokRumah, setBlokRumah] = useState("");
+  const [statusKepemilikan, setStatusKepemilikan] = useState("milik_sendiri");
   const [role, setRole] = useState("warga");
   const [currentEmail, setCurrentEmail] = useState("");
 
@@ -47,7 +48,7 @@ export default function ProfilePage() {
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("full_name, phone, blok_rumah, role, email")
+        .select("full_name, phone, blok_rumah, status_kepemilikan, role, email")
         .eq("id", user.id)
         .single();
 
@@ -59,6 +60,7 @@ export default function ProfilePage() {
         setFullName(profile.full_name || "");
         setPhone(profile.phone || "");
         setBlokRumah(profile.blok_rumah || "");
+        setStatusKepemilikan(profile.status_kepemilikan || "milik_sendiri");
         setRole(profile.role || "warga");
       }
       setLoading(false);
@@ -84,6 +86,7 @@ export default function ProfilePage() {
         full_name: fullName.trim(),
         phone: phone.trim(),
         blok_rumah: blokRumah.trim(),
+        status_kepemilikan: statusKepemilikan,
         email: currentEmail,
         updated_at: new Date().toISOString(),
       })
@@ -205,6 +208,20 @@ export default function ProfilePage() {
               onChange={(e) => setBlokRumah(e.target.value)}
               placeholder="Contoh: A1, B12, C3"
             />
+          </div>
+
+          {/* Status Kepemilikan */}
+          <div className="space-y-2">
+            <Label htmlFor="status_kepemilikan">Status Kepemilikan Rumah</Label>
+            <select
+              id="status_kepemilikan"
+              value={statusKepemilikan}
+              onChange={(e) => setStatusKepemilikan(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="milik_sendiri">Milik Sendiri</option>
+              <option value="kontrak">Kontrak</option>
+            </select>
           </div>
 
           {/* Phone */}

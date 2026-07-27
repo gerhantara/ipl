@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, password, full_name, phone, blok_rumah, role } = body;
+    const { email, password, full_name, phone, blok_rumah, status_kepemilikan, role } = body;
 
     if (!email || !password) {
       return NextResponse.json({ error: "Email dan password wajib diisi" }, { status: 400 });
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
           full_name: full_name || email,
           phone: phone || null,
           blok_rumah: blok_rumah || null,
+          status_kepemilikan: status_kepemilikan || "milik_sendiri",
           role: role || "warga",
         })
         .eq("id", newUser.user.id);

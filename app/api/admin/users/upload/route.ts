@@ -11,6 +11,7 @@ interface WargaRow {
   telepon?: string;
   blok_rumah?: string;
   blok?: string;
+  status_kepemilikan?: string;
   role?: string;
 }
 
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
       const fullName = row.full_name?.toString().trim() || row.nama?.toString().trim() || "";
       const phone = row.phone?.toString().trim() || row.telepon?.toString().trim() || "";
       const blokRumah = row.blok_rumah?.toString().trim() || row.blok?.toString().trim() || "";
+      const statusKepemilikan = row.status_kepemilikan?.toString().trim().toLowerCase() || "milik_sendiri";
       const role = row.role?.toString().trim().toLowerCase() || "warga";
 
       // Validate email
@@ -134,6 +136,15 @@ export async function POST(request: NextRequest) {
         results.failed.push({
           email,
           reason: "Role harus 'warga' atau 'admin'",
+        });
+        continue;
+      }
+
+      // Validate status_kepemilikan
+      if (statusKepemilikan !== "milik_sendiri" && statusKepemilikan !== "kontrak") {
+        results.failed.push({
+          email,
+          reason: "Status kepemilikan harus 'milik_sendiri' atau 'kontrak'",
         });
         continue;
       }
@@ -169,6 +180,7 @@ export async function POST(request: NextRequest) {
               full_name: fullName || email,
               phone: phone || null,
               blok_rumah: blokRumah || null,
+              status_kepemilikan: statusKepemilikan,
               role: role,
             })
             .eq("id", newUser.user.id);
