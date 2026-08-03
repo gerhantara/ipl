@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { User, Mail, Save, AlertCircle, CheckCircle2, KeyRound, Eye, EyeOff } from "lucide-react";
+import { BLOK_RUMAH_OPTIONS } from "@/lib/blok-rumah-options";
 
 export default function ProfilePage() {
   const supabase = createClient();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
@@ -96,6 +99,8 @@ export default function ProfilePage() {
       setProfileMsg({ type: "error", text: error.message });
     } else {
       setProfileMsg({ type: "success", text: "Profil berhasil diperbarui." });
+      window.dispatchEvent(new Event("profile-updated"));
+      router.refresh();
     }
     setSaving(false);
   };
@@ -206,8 +211,14 @@ export default function ProfilePage() {
               id="blok_rumah"
               value={blokRumah}
               onChange={(e) => setBlokRumah(e.target.value)}
-              placeholder="Contoh: A1, B12, C3"
+              list="blok-rumah-options"
+              placeholder="Cari atau pilih blok rumah"
             />
+            <datalist id="blok-rumah-options">
+              {BLOK_RUMAH_OPTIONS.map((blok) => (
+                <option key={blok} value={blok} />
+              ))}
+            </datalist>
           </div>
 
           {/* Status Kepemilikan */}

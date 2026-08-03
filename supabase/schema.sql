@@ -24,8 +24,27 @@ CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles
 CREATE POLICY "Users can insert their own profile" ON public.profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "Users can update own profile" ON public.profiles
-  FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles: update all" ON public.profiles;
+CREATE POLICY "Profiles: update own or admin" ON public.profiles
+  FOR UPDATE
+  TO authenticated
+  USING (
+    auth.uid() = id
+    OR EXISTS (
+      SELECT 1
+      FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    auth.uid() = id
+    OR EXISTS (
+      SELECT 1
+      FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+  );
 
 -- Function to prevent non-admin from changing role
 CREATE OR REPLACE FUNCTION public.prevent_role_change()

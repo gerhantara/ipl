@@ -14,7 +14,10 @@ Contoh isi file `.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyxxxxxxxxxx
+SUPABASE_SERVICE_ROLE_KEY=eyxxxxxxxxxx
 ```
+
+Untuk pengembangan lokal lama yang masih memakai `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY`, aplikasi juga masih akan membacanya sebagai fallback, tetapi sebaiknya pindahkan ke `SUPABASE_SERVICE_ROLE_KEY`.
 
 Selanjutnya, jalankan server pengembangan:
 

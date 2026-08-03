@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
@@ -52,8 +52,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const supabase = createClient();
 
-  // Get user info on mount
-  useState(() => {
+  useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -68,8 +67,19 @@ export default function DashboardLayout({
         }
       }
     };
+
     getUser();
-  });
+
+    const handleProfileUpdated = () => {
+      getUser();
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+    };
+  }, [supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

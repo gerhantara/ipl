@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { BLOK_RUMAH_OPTIONS } from "@/lib/blok-rumah-options";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -122,11 +123,17 @@ export default function RegisterPage() {
               <Input
                 id="blokRumah"
                 type="text"
-                placeholder="Contoh: A1, B2"
+                list="blok-rumah-options"
+                placeholder="Cari atau pilih blok rumah"
                 value={blokRumah}
                 onChange={(e) => setBlokRumah(e.target.value)}
                 required
               />
+              <datalist id="blok-rumah-options">
+                {BLOK_RUMAH_OPTIONS.map((blok) => (
+                  <option key={blok} value={blok} />
+                ))}
+              </datalist>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
