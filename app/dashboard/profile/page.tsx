@@ -21,8 +21,10 @@ export default function ProfilePage() {
   // Profile data
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [pasangan, setPasangan] = useState("");
   const [blokRumah, setBlokRumah] = useState("");
   const [statusKepemilikan, setStatusKepemilikan] = useState("milik_sendiri");
+  const [tanggalSelesaiKontrak, setTanggalSelesaiKontrak] = useState("");
   const [role, setRole] = useState("warga");
   const [currentEmail, setCurrentEmail] = useState("");
 
@@ -51,7 +53,7 @@ export default function ProfilePage() {
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("full_name, phone, blok_rumah, status_kepemilikan, role, email")
+        .select("full_name, phone, pasangan, blok_rumah, status_kepemilikan, tanggal_selesai_kontrak, role, email")
         .eq("id", user.id)
         .single();
 
@@ -62,8 +64,10 @@ export default function ProfilePage() {
       if (profile) {
         setFullName(profile.full_name || "");
         setPhone(profile.phone || "");
+        setPasangan(profile.pasangan || "");
         setBlokRumah(profile.blok_rumah || "");
         setStatusKepemilikan(profile.status_kepemilikan || "milik_sendiri");
+        setTanggalSelesaiKontrak(profile.tanggal_selesai_kontrak || "");
         setRole(profile.role || "warga");
       }
       setLoading(false);
@@ -88,8 +92,10 @@ export default function ProfilePage() {
       .update({
         full_name: fullName.trim(),
         phone: phone.trim(),
+        pasangan: pasangan.trim() || null,
         blok_rumah: blokRumah.trim(),
         status_kepemilikan: statusKepemilikan,
+        tanggal_selesai_kontrak: statusKepemilikan === "kontrak" ? (tanggalSelesaiKontrak || null) : null,
         email: currentEmail,
         updated_at: new Date().toISOString(),
       })
@@ -235,6 +241,19 @@ export default function ProfilePage() {
             </select>
           </div>
 
+          {/* Tanggal Selesai Kontrak (hanya untuk kontrak) */}
+          {statusKepemilikan === "kontrak" && (
+            <div className="space-y-2">
+              <Label htmlFor="tanggal_selesai_kontrak">Tanggal Selesai Kontrak</Label>
+              <Input
+                id="tanggal_selesai_kontrak"
+                type="date"
+                value={tanggalSelesaiKontrak}
+                onChange={(e) => setTanggalSelesaiKontrak(e.target.value)}
+              />
+            </div>
+          )}
+
           {/* Phone */}
           <div className="space-y-2">
             <Label htmlFor="phone">Nomor Telepon</Label>
@@ -243,6 +262,17 @@ export default function ProfilePage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Contoh: 081234567890"
+            />
+          </div>
+
+          {/* Pasangan */}
+          <div className="space-y-2">
+            <Label htmlFor="pasangan">Nama Pasangan</Label>
+            <Input
+              id="pasangan"
+              value={pasangan}
+              onChange={(e) => setPasangan(e.target.value)}
+              placeholder="Kosongkan jika tidak ada / N/A"
             />
           </div>
 

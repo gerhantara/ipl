@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   full_name TEXT,
   phone TEXT,
   blok_rumah TEXT,
+  pasangan TEXT,
   status_kepemilikan TEXT DEFAULT 'milik_sendiri' CHECK (status_kepemilikan IN ('milik_sendiri', 'kontrak')),
+  tanggal_selesai_kontrak DATE,
   role TEXT DEFAULT 'warga' CHECK (role IN ('admin', 'warga')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

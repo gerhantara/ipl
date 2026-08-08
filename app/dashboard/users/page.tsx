@@ -37,8 +37,10 @@ interface UserProfile {
   email: string;
   full_name: string | null;
   phone: string | null;
+  pasangan: string | null;
   blok_rumah: string | null;
   status_kepemilikan: string | null;
+  tanggal_selesai_kontrak: string | null;
   role: string;
   created_at: string;
   is_active: boolean;
@@ -67,8 +69,10 @@ export default function UsersPage() {
   const [newPassword, setNewPassword] = useState("");
   const [newFullName, setNewFullName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [newPasangan, setNewPasangan] = useState("");
   const [newBlokRumah, setNewBlokRumah] = useState("");
   const [newStatusKepemilikan, setNewStatusKepemilikan] = useState("milik_sendiri");
+  const [newTanggalSelesaiKontrak, setNewTanggalSelesaiKontrak] = useState("");
   const [newRole, setNewRole] = useState("warga");
   const [showNewPassword, setShowNewPassword] = useState(false);
   
@@ -76,8 +80,10 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<UserProfile | null>(null);
   const [editFullName, setEditFullName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editPasangan, setEditPasangan] = useState("");
   const [editBlokRumah, setEditBlokRumah] = useState("");
   const [editStatusKepemilikan, setEditStatusKepemilikan] = useState("milik_sendiri");
+  const [editTanggalSelesaiKontrak, setEditTanggalSelesaiKontrak] = useState("");
   const [editRole, setEditRole] = useState("warga");
   
   // Password change form
@@ -127,8 +133,10 @@ export default function UsersPage() {
     setNewPassword("");
     setNewFullName("");
     setNewPhone("");
+    setNewPasangan("");
     setNewBlokRumah("");
     setNewStatusKepemilikan("milik_sendiri");
+    setNewTanggalSelesaiKontrak("");
     setNewRole("warga");
     setShowNewPassword(false);
     setMsg(null);
@@ -159,8 +167,10 @@ export default function UsersPage() {
           password: newPassword,
           full_name: newFullName.trim() || newEmail.trim(),
           phone: newPhone.trim(),
+          pasangan: newPasangan.trim() || null,
           blok_rumah: newBlokRumah.trim(),
           status_kepemilikan: newStatusKepemilikan,
+          tanggal_selesai_kontrak: newStatusKepemilikan === "kontrak" ? (newTanggalSelesaiKontrak || null) : null,
           role: newRole,
         }),
       });
@@ -194,8 +204,10 @@ export default function UsersPage() {
       .update({
         full_name: editFullName.trim(),
         phone: editPhone.trim(),
+        pasangan: editPasangan.trim() || null,
         blok_rumah: editBlokRumah.trim(),
         status_kepemilikan: editStatusKepemilikan,
+        tanggal_selesai_kontrak: editStatusKepemilikan === "kontrak" ? (editTanggalSelesaiKontrak || null) : null,
         role: editRole,
         updated_at: new Date().toISOString(),
       })
@@ -314,8 +326,10 @@ export default function UsersPage() {
     setEditUser(user);
     setEditFullName(user.full_name || "");
     setEditPhone(user.phone || "");
+    setEditPasangan(user.pasangan || "");
     setEditBlokRumah(user.blok_rumah || "");
     setEditStatusKepemilikan(user.status_kepemilikan || "milik_sendiri");
+    setEditTanggalSelesaiKontrak(user.tanggal_selesai_kontrak || "");
     setEditRole(user.role);
     setMsg(null);
     setShowEditDialog(true);
@@ -615,6 +629,15 @@ export default function UsersPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="add_pasangan">Nama Pasangan</Label>
+              <Input
+                id="add_pasangan"
+                value={newPasangan}
+                onChange={(e) => setNewPasangan(e.target.value)}
+                placeholder="Kosongkan jika tidak ada / N/A"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="add_blok">Blok Rumah</Label>
               <Input
                 id="add_blok"
@@ -635,6 +658,17 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
+            {newStatusKepemilikan === "kontrak" && (
+              <div className="space-y-2">
+                <Label htmlFor="add_tanggal_kontrak">Tanggal Selesai Kontrak</Label>
+                <Input
+                  id="add_tanggal_kontrak"
+                  type="date"
+                  value={newTanggalSelesaiKontrak}
+                  onChange={(e) => setNewTanggalSelesaiKontrak(e.target.value)}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="add_role">Role</Label>
               <Select value={newRole} onValueChange={setNewRole}>
@@ -704,6 +738,15 @@ export default function UsersPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="edit_pasangan">Nama Pasangan</Label>
+              <Input
+                id="edit_pasangan"
+                value={editPasangan}
+                onChange={(e) => setEditPasangan(e.target.value)}
+                placeholder="Kosongkan jika tidak ada / N/A"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="edit_blok">Blok Rumah</Label>
               <Input
                 id="edit_blok"
@@ -724,6 +767,17 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
+            {editStatusKepemilikan === "kontrak" && (
+              <div className="space-y-2">
+                <Label htmlFor="edit_tanggal_kontrak">Tanggal Selesai Kontrak</Label>
+                <Input
+                  id="edit_tanggal_kontrak"
+                  type="date"
+                  value={editTanggalSelesaiKontrak}
+                  onChange={(e) => setEditTanggalSelesaiKontrak(e.target.value)}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="edit_role">Role</Label>
               <Select value={editRole} onValueChange={setEditRole}>

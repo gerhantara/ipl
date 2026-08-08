@@ -16,8 +16,10 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [pasangan, setPasangan] = useState("");
   const [blokRumah, setBlokRumah] = useState("");
   const [statusKepemilikan, setStatusKepemilikan] = useState("milik_sendiri");
+  const [tanggalSelesaiKontrak, setTanggalSelesaiKontrak] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -38,8 +40,10 @@ export default function RegisterPage() {
         data: {
           full_name: fullName,
           phone,
+          pasangan: pasangan || null,
           blok_rumah: blokRumah,
           status_kepemilikan: statusKepemilikan,
+          tanggal_selesai_kontrak: statusKepemilikan === "kontrak" ? (tanggalSelesaiKontrak || null) : null,
           role: "warga",
         },
       },
@@ -124,6 +128,16 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="pasangan">Nama Pasangan</Label>
+              <Input
+                id="pasangan"
+                type="text"
+                placeholder="Kosongkan jika tidak ada / N/A"
+                value={pasangan}
+                onChange={(e) => setPasangan(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="blokRumah">Blok Rumah</Label>
               <Input
                 id="blokRumah"
@@ -152,6 +166,17 @@ export default function RegisterPage() {
                 </SelectContent>
               </Select>
             </div>
+            {statusKepemilikan === "kontrak" && (
+              <div className="space-y-2">
+                <Label htmlFor="tanggal_selesai_kontrak">Tanggal Selesai Kontrak</Label>
+                <Input
+                  id="tanggal_selesai_kontrak"
+                  type="date"
+                  value={tanggalSelesaiKontrak}
+                  onChange={(e) => setTanggalSelesaiKontrak(e.target.value)}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input

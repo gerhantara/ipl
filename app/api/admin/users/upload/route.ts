@@ -11,7 +11,9 @@ interface WargaRow {
   telepon?: string;
   blok_rumah?: string;
   blok?: string;
+  pasangan?: string;
   status_kepemilikan?: string;
+  tanggal_selesai_kontrak?: string;
   role?: string;
 }
 
@@ -110,7 +112,9 @@ export async function POST(request: NextRequest) {
       const fullName = row.full_name?.toString().trim() || row.nama?.toString().trim() || "";
       const phone = row.phone?.toString().trim() || row.telepon?.toString().trim() || "";
       const blokRumah = row.blok_rumah?.toString().trim() || row.blok?.toString().trim() || "";
+      const pasangan = row.pasangan?.toString().trim() || null;
       const statusKepemilikan = row.status_kepemilikan?.toString().trim().toLowerCase() || "milik_sendiri";
+      const tanggalSelesaiKontrak = statusKepemilikan === "kontrak" ? (row.tanggal_selesai_kontrak?.toString().trim() || null) : null;
       const role = row.role?.toString().trim().toLowerCase() || "warga";
 
       // Validate email
@@ -179,8 +183,10 @@ export async function POST(request: NextRequest) {
             .update({
               full_name: fullName || email,
               phone: phone || null,
+              pasangan: pasangan,
               blok_rumah: blokRumah || null,
               status_kepemilikan: statusKepemilikan,
+              tanggal_selesai_kontrak: tanggalSelesaiKontrak,
               role: role,
             })
             .eq("id", newUser.user.id);
