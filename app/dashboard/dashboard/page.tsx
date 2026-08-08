@@ -409,9 +409,9 @@ export default function DashboardPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number, name: string) => [
-                        `${value} pembayaran`,
-                        name,
+                      formatter={(value, name) => [
+                        `${value ?? 0} pembayaran`,
+                        name ?? "",
                       ]}
                     />
                     {/* Center label showing unpaid percentage */}
