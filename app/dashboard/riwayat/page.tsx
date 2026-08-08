@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
+import { Eye, Pencil } from "lucide-react";
+import EditPaymentDialog from "@/components/edit-payment-dialog";
 
 interface Pembayaran {
   id: string;
@@ -35,52 +36,55 @@ export default function RiwayatPage() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>("warga");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const fetchData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile) setUserRole(profile.role);
+
+    let query = supabase
+      .from("pembayaran")
+      .select(`
+        id,
+        tanggal_bayar,
+        bulan_bayar,
+        nominal,
+        status,
+        bukti_transfer_url,
+        catatan,
+        profiles!user_id (full_name, blok_rumah),
+        jenis_iuran (nama),
+        rekening (nama_bank, nomor_rekening)
+      `)
+      .order("created_at", { ascending: false });
+
+    if (profile?.role !== "admin") {
+      query = query.eq("user_id", user.id);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error fetching pembayaran:", error);
+      setErrorMsg(error.message);
+    }
+
+    if (data) setPembayaranList(data as unknown as Pembayaran[]);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (profile) setUserRole(profile.role);
-
-      let query = supabase
-        .from("pembayaran")
-        .select(`
-          id,
-          tanggal_bayar,
-          bulan_bayar,
-          nominal,
-          status,
-          bukti_transfer_url,
-          catatan,
-          profiles!user_id (full_name, blok_rumah),
-          jenis_iuran (nama),
-          rekening (nama_bank, nomor_rekening)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (profile?.role !== "admin") {
-        query = query.eq("user_id", user.id);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Error fetching pembayaran:", error);
-        setErrorMsg(error.message);
-      }
-
-      if (data) setPembayaranList(data as unknown as Pembayaran[]);
-      setLoading(false);
-    };
-
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
   const formatCurrency = (amount: number) => {
@@ -153,13 +157,16 @@ export default function RiwayatPage() {
                     <TableHead>Jenis Iuran</TableHead>
                     <TableHead>Bulan</TableHead>
                     <TableHead className="text-right">Nominal</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">Bukti</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pembayaranList.map((p) => (
-                    <TableRow key={p.id}>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-center">Bukti</TableHead>
+                      {userRole !== "admin" && (
+                        <TableHead className="text-center">Aksi</TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pembayaranList.map((p) => (
+                      <TableRow key={p.id}>
                       {userRole === "admin" && (
                         <>
                           <TableCell className="font-medium">
@@ -205,6 +212,20 @@ export default function RiwayatPage() {
                           </Dialog>
                         )}
                       </TableCell>
+                      {userRole !== "admin" && (
+                        <TableCell className="text-center">
+                          {(p.status === "pending" || p.status === "rejected") && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => { setEditId(p.id); setEditOpen(true); }}
+                              title="Edit pembayaran"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -213,6 +234,17 @@ export default function RiwayatPage() {
           )}
         </CardContent>
       </Card>
+
+      <EditPaymentDialog
+        pembayaranId={editId}
+        isAdmin={userRole === "admin"}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaved={() => {
+          setEditId(null);
+          fetchData();
+        }}
+      />
     </div>
   );
 }

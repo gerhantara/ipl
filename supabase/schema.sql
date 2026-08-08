@@ -175,6 +175,11 @@ CREATE POLICY "Admin can update pembayaran" ON public.pembayaran
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
   );
+CREATE POLICY "Owner can update own pending/rejected pembayaran" ON public.pembayaran
+  FOR UPDATE USING (
+    auth.uid() = user_id
+    AND status IN ('pending', 'rejected')
+  );
 
 -- Policies for pengeluaran
 CREATE POLICY "Pengeluaran are viewable by admin" ON public.pengeluaran

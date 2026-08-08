@@ -1,13 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
 interface JenisIuran {
@@ -24,57 +35,102 @@ interface Rekening {
   atas_nama: string;
 }
 
-interface Profile {
-  full_name: string;
-  blok_rumah: string | null;
+interface PembayaranRecord {
+  id: string;
+  user_id: string;
+  jenis_iuran_id: string;
+  rekening_id: string | null;
+  tanggal_bayar: string;
+  bulan_bayar: string[];
+  nominal: number;
+  bukti_transfer_url: string | null;
+  status: string;
 }
 
-export default function BayarIPLPage() {
-  const router = useRouter();
+interface EditPaymentDialogProps {
+  pembayaranId: string | null;
+  isAdmin: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}
+
+export default function EditPaymentDialog({
+  pembayaranId,
+  isAdmin,
+  open,
+  onOpenChange,
+  onSaved,
+}: EditPaymentDialogProps) {
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
   const [jenisIuranList, setJenisIuranList] = useState<JenisIuran[]>([]);
   const [rekeningList, setRekeningList] = useState<Rekening[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [keringananMap, setKeringananMap] = useState<Record<string, number>>({});
 
   const [selectedJenis, setSelectedJenis] = useState<string>("");
   const [selectedRekening, setSelectedRekening] = useState<string>("");
-  const [tanggalBayar, setTanggalBayar] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [tanggalBayar, setTanggalBayar] = useState<string>("");
   const [bulanBayar, setBulanBayar] = useState<string[]>([]);
   const [nominal, setNominal] = useState<string>("");
   const [buktiFile, setBuktiFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [keringananMap, setKeringananMap] = useState<Record<string, number>>({});
   const [reliefTotal, setReliefTotal] = useState<number>(0);
 
+  // Generate month options for year 2026 only
+  const monthOptions = [];
+  for (let m = 0; m < 12; m++) {
+    const d = new Date(2026, m, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+    monthOptions.push({ value, label });
+  }
+
   useEffect(() => {
+    if (!open) return;
     const fetchData = async () => {
+      setFetching(true);
+      setError(null);
+      setBuktiFile(null);
+
       const { data: jenis } = await supabase
         .from("jenis_iuran")
         .select("*")
         .eq("aktif", true);
-
       const { data: rekening } = await supabase
         .from("rekening")
         .select("*")
         .eq("aktif", true);
+      if (jenis) setJenisIuranList(jenis);
+      if (rekening) setRekeningList(rekening);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("full_name, blok_rumah")
-          .eq("id", user.id)
+      if (pembayaranId) {
+        const { data: p } = await supabase
+          .from("pembayaran")
+          .select("id, user_id, jenis_iuran_id, rekening_id, tanggal_bayar, bulan_bayar, nominal, bukti_transfer_url, status")
+          .eq("id", pembayaranId)
           .single();
 
-        if (profileData) {
-          setProfile(profileData);
-          if (profileData.blok_rumah) {
+        if (p) {
+          const rec = p as unknown as PembayaranRecord;
+          setSelectedJenis(rec.jenis_iuran_id);
+          setSelectedRekening(rec.rekening_id || "");
+          setTanggalBayar(rec.tanggal_bayar);
+          setBulanBayar(rec.bulan_bayar || []);
+          setNominal(String(rec.nominal));
+
+          // Load keringanan for this user's blok
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("blok_rumah")
+            .eq("id", rec.user_id)
+            .single();
+          if (profile?.blok_rumah) {
             const { data: keringanan } = await supabase
               .from("keringanan_ipl")
               .select("tahun, nilai_keringanan")
-              .eq("blok_rumah", profileData.blok_rumah)
+              .eq("blok_rumah", profile.blok_rumah)
               .eq("is_active", true);
             if (keringanan) {
               const map: Record<string, number> = {};
@@ -86,13 +142,10 @@ export default function BayarIPLPage() {
           }
         }
       }
-
-      if (jenis) setJenisIuranList(jenis);
-      if (rekening) setRekeningList(rekening);
+      setFetching(false);
     };
-
     fetchData();
-  }, [supabase]);
+  }, [open, pembayaranId, supabase]);
 
   const selectedJenisData = jenisIuranList.find((j) => j.id === selectedJenis);
 
@@ -124,11 +177,12 @@ export default function BayarIPLPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!pembayaranId) return;
     setLoading(true);
     setError(null);
 
-    if (!selectedJenis || !selectedRekening || bulanBayar.length === 0 || !buktiFile) {
-      setError("Semua field wajib diisi");
+    if (!selectedJenis || !selectedRekening || bulanBayar.length === 0) {
+      setError("Jenis iuran, rekening, dan bulan wajib diisi");
       setLoading(false);
       return;
     }
@@ -141,118 +195,88 @@ export default function BayarIPLPage() {
         return;
       }
 
-      // Upload file to storage
-      const fileExt = buktiFile.name.split(".").pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("bukti-transfer")
-        .upload(fileName, buktiFile);
-
-      if (uploadError) {
-        setError("Gagal mengupload bukti transfer");
-        setLoading(false);
-        return;
+      let buktiUrl: string | null = null;
+      if (buktiFile) {
+        const fileExt = buktiFile.name.split(".").pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from("bukti-transfer")
+          .upload(fileName, buktiFile);
+        if (uploadError) {
+          setError("Gagal mengupload bukti transfer");
+          setLoading(false);
+          return;
+        }
+        const { data: urlData } = supabase.storage
+          .from("bukti-transfer")
+          .getPublicUrl(fileName);
+        buktiUrl = urlData.publicUrl;
       }
 
-      const { data: urlData } = supabase.storage
-        .from("bukti-transfer")
-        .getPublicUrl(fileName);
+      // Tentukan status setelah edit:
+      // - Admin mengedit: status tetap (verified tetap verified)
+      // - Warga mengedit pembayaran rejected/pending: kembalikan ke pending (resubmit)
+      const { data: current } = await supabase
+        .from("pembayaran")
+        .select("status")
+        .eq("id", pembayaranId)
+        .single();
 
-      // Insert payment record (blok_rumah comes from profiles)
-      // Status "pending" agar admin dapat memverifikasi pembayaran warga
-      const { error: insertError } = await supabase.from("pembayaran").insert({
-        user_id: user.id,
+      let newStatus = (current?.status as string) || "pending";
+      if (!isAdmin && newStatus === "rejected") {
+        newStatus = "pending";
+      }
+
+      const updatePayload: Record<string, unknown> = {
         jenis_iuran_id: selectedJenis,
         rekening_id: selectedRekening,
         tanggal_bayar: tanggalBayar,
         bulan_bayar: bulanBayar,
         nominal: Number(nominal),
-        bukti_transfer_url: urlData.publicUrl,
-        status: "pending",
-      });
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
+      if (buktiUrl) {
+        updatePayload.bukti_transfer_url = buktiUrl;
+      }
+      // Jika warga mengedit, bersihkan catatan penolakan admin
+      if (!isAdmin) {
+        updatePayload.catatan = null;
+      }
 
-      if (insertError) {
-        setError("Gagal menyimpan data pembayaran");
+      const { error: updateError } = await supabase
+        .from("pembayaran")
+        .update(updatePayload)
+        .eq("id", pembayaranId);
+
+      if (updateError) {
+        setError("Gagal menyimpan perubahan: " + updateError.message);
         setLoading(false);
         return;
       }
 
-      setSuccess(true);
       setLoading(false);
+      onOpenChange(false);
+      onSaved();
     } catch {
       setError("Terjadi kesalahan");
       setLoading(false);
     }
   };
 
-  if (success) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-green-600">Pembayaran Berhasil Dicatat!</CardTitle>
-            <CardDescription>
-              Pembayaran Anda telah tercatat dan masuk ke saldo kas.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex gap-4">
-            <Button onClick={() => {
-              setSuccess(false);
-              setSelectedJenis("");
-              setSelectedRekening("");
-              setBulanBayar([]);
-              setNominal("");
-              setBuktiFile(null);
-            }}>
-              Bayar Lagi
-            </Button>
-            <Button variant="outline" onClick={() => router.push("/dashboard/riwayat")}>
-              Lihat Riwayat
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Generate month options for year 2026 only
-  const monthOptions = [];
-  for (let m = 0; m < 12; m++) {
-    const d = new Date(2026, m, 1);
-    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-    monthOptions.push({ value, label });
-  }
-
   return (
-    <div className="max-w-2xl mx-auto">
-      <Card>
-        <CardHeader>
-          <CardTitle>Bayar IPL</CardTitle>
-          <CardDescription>
-            Isi form berikut untuk mencatat pembayaran iuran Anda
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit Pembayaran</DialogTitle>
+        </DialogHeader>
+        {fetching ? (
+          <p className="text-muted-foreground py-8 text-center">Memuat data...</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
                 {error}
-              </div>
-            )}
-
-            {/* Info Warga (read-only) */}
-            {profile && (
-              <div className="grid grid-cols-2 gap-4 bg-muted/50 p-3 rounded-md">
-                <div>
-                  <p className="text-sm text-muted-foreground">Nama</p>
-                  <p className="font-medium">{profile.full_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Blok Rumah</p>
-                  <p className="font-medium">{profile.blok_rumah || "-"}</p>
-                </div>
               </div>
             )}
 
@@ -357,7 +381,7 @@ export default function BayarIPLPage() {
 
             {/* Bukti Transfer */}
             <div className="space-y-2">
-              <Label htmlFor="bukti">Upload Bukti Transfer</Label>
+              <Label htmlFor="bukti">Upload Bukti Transfer (opsional)</Label>
               <Input
                 id="bukti"
                 type="file"
@@ -365,16 +389,21 @@ export default function BayarIPLPage() {
                 onChange={(e) => setBuktiFile(e.target.files?.[0] || null)}
               />
               <p className="text-sm text-muted-foreground">
-                Format: JPG, PNG. Maksimal 5MB.
+                Format: JPG, PNG. Maksimal 5MB. Kosongkan jika tidak ingin mengubah bukti.
               </p>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Memproses..." : "Kirim Pembayaran"}
-            </Button>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+                Batal
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Menyimpan..." : "Simpan Perubahan"}
+              </Button>
+            </DialogFooter>
           </form>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

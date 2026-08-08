@@ -22,7 +22,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Eye, X } from "lucide-react";
+import { Eye, X, Pencil } from "lucide-react";
+import EditPaymentDialog from "@/components/edit-payment-dialog";
 
 interface Pembayaran {
   id: string;
@@ -45,6 +46,8 @@ export default function VerifikasiPage() {
   const [selectedPembayaran, setSelectedPembayaran] = useState<Pembayaran | null>(null);
   const [catatan, setCatatan] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const fetchData = async () => {
     // Ambil pembayaran verified (aktif)
@@ -159,9 +162,14 @@ export default function VerifikasiPage() {
                     <TableCell className="text-sm">{formatBulan(p.bulan_bayar)}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(p.nominal)}</TableCell>
                     <TableCell className="text-center">
-                      <Button variant="outline" size="sm" onClick={() => { setSelectedPembayaran(p); setCatatan(p.catatan || ""); }}>
-                        <Eye className="h-4 w-4 mr-1" /> Detail
-                      </Button>
+                      <div className="flex gap-2 justify-center">
+                        <Button variant="outline" size="sm" onClick={() => { setSelectedPembayaran(p); setCatatan(p.catatan || ""); }}>
+                          <Eye className="h-4 w-4 mr-1" /> Detail
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => { setEditId(p.id); setEditOpen(true); }}>
+                          <Pencil className="h-4 w-4 mr-1" /> Edit
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -206,14 +214,19 @@ export default function VerifikasiPage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{p.catatan || "-"}</TableCell>
                     <TableCell className="text-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRestore(p)}
-                        disabled={actionLoading}
-                      >
-                        Kembalikan
-                      </Button>
+                      <div className="flex gap-2 justify-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRestore(p)}
+                          disabled={actionLoading}
+                        >
+                          Kembalikan
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => { setEditId(p.id); setEditOpen(true); }}>
+                          <Pencil className="h-4 w-4 mr-1" /> Edit
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -259,6 +272,17 @@ export default function VerifikasiPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <EditPaymentDialog
+        pembayaranId={editId}
+        isAdmin={true}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaved={() => {
+          setEditId(null);
+          fetchData();
+        }}
+      />
     </div>
   );
 }
