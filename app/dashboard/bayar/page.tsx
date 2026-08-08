@@ -215,11 +215,10 @@ export default function BayarIPLPage() {
     );
   }
 
-  // Generate month options for current and next 12 months
+  // Generate month options for year 2026 only
   const monthOptions = [];
-  const now = new Date();
-  for (let i = -12; i <= 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+  for (let m = 0; m < 12; m++) {
+    const d = new Date(2026, m, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const label = d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
     monthOptions.push({ value, label });

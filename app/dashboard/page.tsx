@@ -77,11 +77,10 @@ export default function DashboardPage() {
         setUserRole(profile.role);
       }
 
-      // Generate last 12 months keys
-      const now = new Date();
+      // Generate months for year 2026 only
       const months: { key: string; label: string }[] = [];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      for (let m = 0; m < 12; m++) {
+        const d = new Date(2026, m, 1);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         const label = d.toLocaleDateString("id-ID", { month: "short", year: "2-digit" });
         months.push({ key, label });
@@ -114,10 +113,10 @@ export default function DashboardPage() {
           pendingVerification: pending?.length || 0,
         });
 
-        // Build monthly data for last 6 months
+        // Build monthly data for year 2026
         const monthlyMap: Record<string, { pemasukan: number; pengeluaran: number }> = {};
-        for (let i = 5; i >= 0; i--) {
-          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        for (let m = 0; m < 12; m++) {
+          const d = new Date(2026, m, 1);
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
           monthlyMap[key] = { pemasukan: 0, pengeluaran: 0 };
         }
@@ -318,7 +317,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Grafik Pemasukan vs Pengeluaran</CardTitle>
-            <CardDescription>6 bulan terakhir</CardDescription>
+            <CardDescription>Tahun 2026</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={350}>
@@ -350,7 +349,7 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle>Status Pembayaran Warga</CardTitle>
           <CardDescription>
-            Rekap pembayaran IPL 12 bulan terakhir (diurutkan dari yang paling sedikit membayar)
+            Rekap pembayaran IPL tahun 2026 (diurutkan dari yang paling sedikit membayar)
           </CardDescription>
         </CardHeader>
         <CardContent>
