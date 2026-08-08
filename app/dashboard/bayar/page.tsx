@@ -45,6 +45,8 @@ export default function BayarIPLPage() {
   const [buktiFile, setBuktiFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [keringananMap, setKeringananMap] = useState<Record<string, number>>({});
+  const [reliefTotal, setReliefTotal] = useState<number>(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,6 +70,20 @@ export default function BayarIPLPage() {
 
         if (profileData) {
           setProfile(profileData);
+          if (profileData.blok_rumah) {
+            const { data: keringanan } = await supabase
+              .from("keringanan_ipl")
+              .select("tahun, nilai_keringanan")
+              .eq("blok_rumah", profileData.blok_rumah)
+              .eq("is_active", true);
+            if (keringanan) {
+              const map: Record<string, number> = {};
+              keringanan.forEach((k: { tahun: string; nilai_keringanan: number }) => {
+                map[k.tahun] = Number(k.nilai_keringanan);
+              });
+              setKeringananMap(map);
+            }
+          }
         }
       }
 
@@ -91,10 +107,20 @@ export default function BayarIPLPage() {
   useEffect(() => {
     if (selectedJenisData && bulanBayar.length > 0) {
       if (selectedJenisData.jenis === "wajib") {
-        setNominal(String(selectedJenisData.nominal * bulanBayar.length));
+        const relief = bulanBayar.reduce(
+          (sum, b) => sum + (keringananMap[b.split("-")[0]] || 0),
+          0
+        );
+        setReliefTotal(relief);
+        const perMonth = Math.max(selectedJenisData.nominal - relief, 0);
+        setNominal(String(perMonth * bulanBayar.length));
+      } else {
+        setReliefTotal(0);
       }
+    } else {
+      setReliefTotal(0);
     }
-  }, [selectedJenisData, bulanBayar]);
+  }, [selectedJenisData, bulanBayar, keringananMap]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -283,12 +309,21 @@ export default function BayarIPLPage() {
                 value={nominal}
                 onChange={(e) => setNominal(e.target.value)}
                 placeholder="Masukkan nominal"
-                disabled={selectedJenisData?.jenis === "wajib"}
               />
               {selectedJenisData?.jenis === "wajib" && bulanBayar.length > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Nominal otomatis dihitung: Rp {selectedJenisData.nominal.toLocaleString("id-ID")} × {bulanBayar.length} bulan
-                </p>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>
+                    Nominal otomatis dihitung: (Rp {selectedJenisData.nominal.toLocaleString("id-ID")}
+                    {reliefTotal > 0 && (
+                      <> − Rp {reliefTotal.toLocaleString("id-ID")} keringanan</>
+                    )}) × {bulanBayar.length} bulan
+                  </p>
+                  {reliefTotal > 0 && (
+                    <p className="text-green-600">
+                      Keringanan diterapkan: Rp {reliefTotal.toLocaleString("id-ID")}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 

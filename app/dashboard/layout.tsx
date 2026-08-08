@@ -19,6 +19,7 @@ import {
   Wallet,
   Building2,
   UserCircle,
+  BadgePercent,
 } from "lucide-react";
 
 interface SidebarItem {
@@ -32,13 +33,14 @@ const sidebarItems: SidebarItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: <Home className="h-5 w-5" /> },
   { title: "Bayar IPL", href: "/dashboard/bayar", icon: <CreditCard className="h-5 w-5" /> },
   { title: "Riwayat Pembayaran", href: "/dashboard/riwayat", icon: <FileText className="h-5 w-5" /> },
-  { title: "Profil", href: "/dashboard/profile", icon: <UserCircle className="h-5 w-5" /> },
-  { title: "Manajemen User", href: "/dashboard/users", icon: <Users className="h-5 w-5" />, adminOnly: true },
   { title: "Verifikasi Pembayaran", href: "/dashboard/verifikasi", icon: <Users className="h-5 w-5" />, adminOnly: true },
   { title: "Pengeluaran", href: "/dashboard/pengeluaran", icon: <Wallet className="h-5 w-5" />, adminOnly: true },
   { title: "Jenis Iuran", href: "/dashboard/jenis-iuran", icon: <CreditCard className="h-5 w-5" />, adminOnly: true },
+  { title: "Keringanan IPL", href: "/dashboard/keringanan", icon: <BadgePercent className="h-5 w-5" />, adminOnly: true },
   { title: "Rekening", href: "/dashboard/rekening", icon: <Building2 className="h-5 w-5" />, adminOnly: true },
-];
+  { title: "Profil", href: "/dashboard/profile", icon: <UserCircle className="h-5 w-5" /> },
+  { title: "Manajemen User", href: "/dashboard/users", icon: <Users className="h-5 w-5" />, adminOnly: true },
+  ];
 
 export default function DashboardLayout({
   children,

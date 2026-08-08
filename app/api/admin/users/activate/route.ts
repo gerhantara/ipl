@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 
-// POST - Admin deactivate (ban) a user so they cannot login
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const adminClient = createAdminClient();
 
     // Verify the requester is an admin
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -31,24 +33,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User ID wajib diisi" }, { status: 400 });
     }
 
-    // Prevent admin from deactivating themselves
-    if (userId === user.id) {
-      return NextResponse.json({ error: "Anda tidak dapat menonaktifkan akun sendiri" }, { status: 400 });
-    }
-
-    // Ban the user for 10 years (effectively permanent deactivation)
-    const { error: banError } = await adminClient.auth.admin.updateUserById(userId, {
-      ban_duration: "87600h", // ~10 years
+    // Remove auth ban so user can login again.
+    const { error: unbanError } = await adminClient.auth.admin.updateUserById(userId, {
+      ban_duration: "none",
     });
 
-    if (banError) {
-      return NextResponse.json({ error: banError.message }, { status: 400 });
+    if (unbanError) {
+      return NextResponse.json({ error: unbanError.message }, { status: 400 });
     }
 
     const { error: profileError } = await adminClient
       .from("profiles")
       .update({
-        is_active: false,
+        is_active: true,
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId);
@@ -59,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deactivating user:", error);
+    console.error("Error activating user:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

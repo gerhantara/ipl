@@ -41,6 +41,7 @@ interface UserProfile {
   status_kepemilikan: string | null;
   role: string;
   created_at: string;
+  is_active: boolean;
   updated_at: string;
 }
 
@@ -55,6 +56,7 @@ export default function UsersPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
   
   // Form states
   const [saving, setSaving] = useState(false);
@@ -86,6 +88,7 @@ export default function UsersPage() {
   
   // Deactivate user
   const [deactivateUser, setDeactivateUser] = useState<UserProfile | null>(null);
+  const [activateUser, setActivateUser] = useState<UserProfile | null>(null);
 
   // Upload state
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -280,6 +283,33 @@ export default function UsersPage() {
     setSaving(false);
   };
 
+  const handleActivateUser = async () => {
+    if (!activateUser) return;
+    setSaving(true);
+    setMsg(null);
+
+    try {
+      const response = await fetch("/api/admin/users/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: activateUser.id }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setMsg({ type: "error", text: result.error || "Gagal mengaktifkan user." });
+      } else {
+        setMsg({ type: "success", text: "User berhasil diaktifkan." });
+        fetchUsers();
+        setTimeout(() => { setShowActivateDialog(false); setMsg(null); }, 1500);
+      }
+    } catch (error) {
+      setMsg({ type: "error", text: "Terjadi kesalahan." });
+    }
+    setSaving(false);
+  };
+
   const openEditDialog = (user: UserProfile) => {
     setEditUser(user);
     setEditFullName(user.full_name || "");
@@ -304,6 +334,12 @@ export default function UsersPage() {
     setDeactivateUser(user);
     setMsg(null);
     setShowDeactivateDialog(true);
+  };
+
+  const openActivateDialog = (user: UserProfile) => {
+    setActivateUser(user);
+    setMsg(null);
+    setShowActivateDialog(true);
   };
 
   // Upload handlers
@@ -439,6 +475,7 @@ export default function UsersPage() {
                   <TableHead>Blok Rumah</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Telepon</TableHead>
+                  <TableHead>Status Akun</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead className="text-center">Aksi</TableHead>
                 </TableRow>
@@ -462,6 +499,11 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>{user.phone || "-"}</TableCell>
                     <TableCell>
+                      <Badge variant={user.is_active ? "default" : "destructive"}>
+                        {user.is_active ? "Aktif" : "Nonaktif"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={user.role === "admin" ? "default" : "outline"} className="capitalize">
                         {user.role}
                       </Badge>
@@ -484,15 +526,27 @@ export default function UsersPage() {
                         >
                           <KeyRound className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openDeactivateDialog(user)}
-                          title="Nonaktifkan User"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <UserX className="h-4 w-4" />
-                        </Button>
+                        {user.is_active ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openDeactivateDialog(user)}
+                            title="Nonaktifkan User"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <UserX className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openActivateDialog(user)}
+                            title="Aktifkan User"
+                            className="text-green-600 hover:text-green-600"
+                          >
+                            <UserCheck className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -795,6 +849,37 @@ export default function UsersPage() {
             <Button variant="outline" onClick={() => setShowDeactivateDialog(false)}>Batal</Button>
             <Button variant="destructive" onClick={handleDeactivateUser} disabled={saving}>
               {saving ? "Memproses..." : "Nonaktifkan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Activate User Dialog */}
+      <Dialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aktifkan User</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin mengaktifkan user <strong>{activateUser?.full_name || activateUser?.email}</strong>?
+              User akan bisa login ke sistem.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {msg && (
+            <div className={`flex items-start gap-2 text-sm p-3 rounded-md ${
+              msg.type === "success"
+                ? "bg-green-50 text-green-700 border border-green-200"
+                : "bg-destructive/10 text-destructive border border-destructive/20"
+            }`}>
+              {msg.type === "success" ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> : <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />}
+              <span>{msg.text}</span>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowActivateDialog(false)}>Batal</Button>
+            <Button onClick={handleActivateUser} disabled={saving}>
+              {saving ? "Memproses..." : "Aktifkan"}
             </Button>
           </DialogFooter>
         </DialogContent>

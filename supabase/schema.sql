@@ -89,6 +89,18 @@ CREATE TABLE IF NOT EXISTS public.rekening (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Keringanan IPL table (relief/discount per blok per year)
+CREATE TABLE IF NOT EXISTS public.keringanan_ipl (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  blok_rumah TEXT NOT NULL,
+  tahun TEXT NOT NULL, -- Year like '2024'
+  nilai_keringanan DECIMAL(12,2) NOT NULL DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (blok_rumah, tahun)
+);
+
 -- Pembayaran table
 CREATE TABLE IF NOT EXISTS public.pembayaran (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -125,6 +137,7 @@ ALTER TABLE public.jenis_iuran ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rekening ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pembayaran ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pengeluaran ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.keringanan_ipl ENABLE ROW LEVEL SECURITY;
 
 -- Policies for jenis_iuran
 CREATE POLICY "Jenis iuran are viewable by everyone" ON public.jenis_iuran
@@ -138,6 +151,14 @@ CREATE POLICY "Only admin can manage jenis iuran" ON public.jenis_iuran
 CREATE POLICY "Rekening are viewable by everyone" ON public.rekening
   FOR SELECT USING (true);
 CREATE POLICY "Only admin can manage rekening" ON public.rekening
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Policies for keringanan_ipl
+CREATE POLICY "Keringanan IPL are viewable by authenticated" ON public.keringanan_ipl
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Only admin can manage keringanan IPL" ON public.keringanan_ipl
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
   );

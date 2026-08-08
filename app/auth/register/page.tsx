@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BLOK_RUMAH_OPTIONS } from "@/lib/blok-rumah-options";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -16,6 +17,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [blokRumah, setBlokRumah] = useState("");
+  const [statusKepemilikan, setStatusKepemilikan] = useState("milik_sendiri");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -31,10 +33,13 @@ export default function RegisterPage() {
       email,
       password,
       options: {
+        // Menonaktifkan email konfirmasi, aktivasi dilakukan oleh admin
+        emailRedirectTo: `${location.origin}/auth/callback`,
         data: {
           full_name: fullName,
           phone,
           blok_rumah: blokRumah,
+          status_kepemilikan: statusKepemilikan,
           role: "warga",
         },
       },
@@ -57,7 +62,7 @@ export default function RegisterPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Registrasi Berhasil!</CardTitle>
             <CardDescription>
-              Silakan cek email Anda untuk verifikasi akun.
+              Akun Anda telah dibuat dan sedang menunggu aktivasi dari admin. Silakan hubungi pengurus.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -134,6 +139,18 @@ export default function RegisterPage() {
                   <option key={blok} value={blok} />
                 ))}
               </datalist>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status_kepemilikan">Status Kepemilikan Rumah</Label>
+              <Select value={statusKepemilikan} onValueChange={setStatusKepemilikan}>
+                <SelectTrigger id="status_kepemilikan">
+                  <SelectValue placeholder="Pilih status kepemilikan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="milik_sendiri">Milik Sendiri</SelectItem>
+                  <SelectItem value="kontrak">Kontrak</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
