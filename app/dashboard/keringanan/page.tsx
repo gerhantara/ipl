@@ -25,19 +25,28 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { BLOK_RUMAH_OPTIONS } from "@/lib/blok-rumah-options";
+import { useBlokRumahOptions } from "@/lib/use-blok-rumah-options";
+
+interface JenisIuran {
+  id: string;
+  nama: string;
+  nominal: number;
+}
 
 interface KeringananIPL {
   id: string;
   blok_rumah: string;
   tahun: string; // 'YYYY'
   nilai_keringanan: number;
+  jenis_iuran_id: string;
   is_active: boolean;
 }
 
 export default function KeringananIPLPage() {
   const supabase = createClient();
+  const { blokOptions } = useBlokRumahOptions();
   const [list, setList] = useState<KeringananIPL[]>([]);
+  const [jenisIuranList, setJenisIuranList] = useState<JenisIuran[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,6 +54,7 @@ export default function KeringananIPLPage() {
 
   const [blokRumah, setBlokRumah] = useState("");
   const [tahun, setTahun] = useState("");
+  const [jenisIuranId, setJenisIuranId] = useState("");
   const [nilaiKeringanan, setNilaiKeringanan] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,21 +72,32 @@ export default function KeringananIPLPage() {
   }, []);
 
   const fetchData = async () => {
-    const { data } = await supabase
-      .from("keringanan_ipl")
-      .select("*")
-      .order("blok_rumah", { ascending: true })
-      .order("tahun", { ascending: false });
+    const [{ data }, { data: jenis }] = await Promise.all([
+      supabase
+        .from("keringanan_ipl")
+        .select("*")
+        .order("blok_rumah", { ascending: true })
+        .order("tahun", { ascending: false }),
+      supabase
+        .from("jenis_iuran")
+        .select("id, nama, nominal")
+        .eq("aktif", true),
+    ]);
     if (data) setList(data as KeringananIPL[]);
+    if (jenis) setJenisIuranList(jenis as JenisIuran[]);
     setLoading(false);
   };
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
 
+  const jenisName = (id: string) =>
+    jenisIuranList.find((j) => j.id === id)?.nama || "-";
+
   const resetForm = () => {
     setBlokRumah("");
     setTahun("");
+    setJenisIuranId("");
     setNilaiKeringanan("");
     setIsActive(true);
     setEditingId(null);
@@ -88,8 +109,8 @@ export default function KeringananIPLPage() {
     setSubmitting(true);
     setError(null);
 
-    if (!blokRumah || !tahun || nilaiKeringanan === "") {
-      setError("Blok rumah, tahun, dan nilai keringanan wajib diisi");
+    if (!blokRumah || !tahun || !jenisIuranId || nilaiKeringanan === "") {
+      setError("Blok rumah, tahun, jenis iuran, dan nilai keringanan wajib diisi");
       setSubmitting(false);
       return;
     }
@@ -97,14 +118,15 @@ export default function KeringananIPLPage() {
     const payload = {
       blok_rumah: blokRumah,
       tahun,
+      jenis_iuran_id: jenisIuranId,
       nilai_keringanan: Number(nilaiKeringanan),
       is_active: isActive,
     };
 
-    // Upsert: unique (blok_rumah, tahun) will update existing entry
+    // Upsert: unique (blok_rumah, tahun, jenis_iuran_id) akan memperbarui data yang sama
     const { error: upsertError } = await supabase
       .from("keringanan_ipl")
-      .upsert(payload, { onConflict: "blok_rumah,tahun" });
+      .upsert(payload, { onConflict: "blok_rumah,tahun,jenis_iuran_id" });
 
     if (upsertError) {
       setError("Gagal menyimpan data keringanan");
@@ -122,6 +144,7 @@ export default function KeringananIPLPage() {
     setEditingId(item.id);
     setBlokRumah(item.blok_rumah);
     setTahun(item.tahun);
+    setJenisIuranId(item.jenis_iuran_id);
     setNilaiKeringanan(String(item.nilai_keringanan));
     setIsActive(item.is_active);
     setDialogOpen(true);
@@ -164,7 +187,7 @@ export default function KeringananIPLPage() {
                 <Select value={blokRumah} onValueChange={setBlokRumah}>
                   <SelectTrigger><SelectValue placeholder="Pilih blok rumah" /></SelectTrigger>
                   <SelectContent>
-                    {BLOK_RUMAH_OPTIONS.map((blok) => (
+                    {blokOptions.map((blok) => (
                       <SelectItem key={blok} value={blok}>{blok}</SelectItem>
                     ))}
                   </SelectContent>
@@ -180,6 +203,22 @@ export default function KeringananIPLPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Jenis Iuran</Label>
+                <Select value={jenisIuranId} onValueChange={setJenisIuranId}>
+                  <SelectTrigger><SelectValue placeholder="Pilih jenis iuran" /></SelectTrigger>
+                  <SelectContent>
+                    {jenisIuranList.map((j) => (
+                      <SelectItem key={j.id} value={j.id}>
+                        {j.nama} - Rp {Number(j.nominal).toLocaleString("id-ID")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Keringanan berlaku untuk jenis iuran ini.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Nilai Keringanan (Rp)</Label>
@@ -217,6 +256,7 @@ export default function KeringananIPLPage() {
                 <TableRow>
                   <TableHead>Blok Rumah</TableHead>
                   <TableHead>Tahun</TableHead>
+                  <TableHead>Jenis Iuran</TableHead>
                   <TableHead className="text-right">Nilai Keringanan</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-center">Aksi</TableHead>
@@ -229,6 +269,7 @@ export default function KeringananIPLPage() {
                     <Badge variant="secondary">{item.blok_rumah}</Badge>
                   </TableCell>
                   <TableCell>{item.tahun}</TableCell>
+                  <TableCell>{jenisName(item.jenis_iuran_id)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(Number(item.nilai_keringanan))}</TableCell>
                   <TableCell>
                     <Badge variant={item.is_active ? "default" : "outline"}>{item.is_active ? "Aktif" : "Nonaktif"}</Badge>

@@ -68,6 +68,7 @@ export default function EditPaymentDialog({
   const [jenisIuranList, setJenisIuranList] = useState<JenisIuran[]>([]);
   const [rekeningList, setRekeningList] = useState<Rekening[]>([]);
   const [keringananMap, setKeringananMap] = useState<Record<string, number>>({});
+  const [isDouble, setIsDouble] = useState(false); // referensi tabel `rumah`: is_double => tarif ×2
 
   const [selectedJenis, setSelectedJenis] = useState<string>("");
   const [selectedRekening, setSelectedRekening] = useState<string>("");
@@ -127,18 +128,28 @@ export default function EditPaymentDialog({
             .eq("id", rec.user_id)
             .single();
           if (profile?.blok_rumah) {
+            // Keringanan per jenis iuran (FK jenis_iuran_id) + per tahun
             const { data: keringanan } = await supabase
               .from("keringanan_ipl")
-              .select("tahun, nilai_keringanan")
+              .select("tahun, nilai_keringanan, jenis_iuran_id")
               .eq("blok_rumah", profile.blok_rumah)
               .eq("is_active", true);
             if (keringanan) {
               const map: Record<string, number> = {};
-              keringanan.forEach((k: { tahun: string; nilai_keringanan: number }) => {
-                map[k.tahun] = Number(k.nilai_keringanan);
+              keringanan.forEach((k: { tahun: string; nilai_keringanan: number; jenis_iuran_id: string }) => {
+                map[`${k.jenis_iuran_id}:${k.tahun}`] = Number(k.nilai_keringanan);
               });
               setKeringananMap(map);
             }
+
+            // Referensi tabel `rumah`: jika blok rumah terdaftar is_double, tarif dikali 2
+            const { data: rumahData } = await supabase
+              .from("rumah")
+              .select("is_double")
+              .eq("blok_rumah", profile.blok_rumah)
+              .eq("is_aktif", true)
+              .maybeSingle();
+            setIsDouble(Boolean(rumahData?.is_double));
           }
         }
       }
@@ -148,6 +159,13 @@ export default function EditPaymentDialog({
   }, [open, pembayaranId, supabase]);
 
   const selectedJenisData = jenisIuranList.find((j) => j.id === selectedJenis);
+
+  // Keringanan per bulan untuk jenis & tahun bulan pertama terpilih
+  // (bulan tersedia hanya dalam 1 tahun, jadi nilainya konstan per bulan)
+  const reliefPerMonth =
+    selectedJenisData && bulanBayar.length > 0
+      ? keringananMap[`${selectedJenisData.id}:${bulanBayar[0].split("-")[0]}`] || 0
+      : 0;
 
   const handleBulanChange = (bulan: string) => {
     if (bulanBayar.includes(bulan)) {
@@ -160,20 +178,29 @@ export default function EditPaymentDialog({
   useEffect(() => {
     if (selectedJenisData && bulanBayar.length > 0) {
       if (selectedJenisData.jenis === "wajib") {
-        const relief = bulanBayar.reduce(
-          (sum, b) => sum + (keringananMap[b.split("-")[0]] || 0),
+        // Keringanan hanya berlaku untuk jenis iuran yang terpilih (via FK jenis_iuran_id),
+        // dihitung per bulan berdasarkan tahun pada bulan tersebut.
+        const totalRelief = bulanBayar.reduce(
+          (sum, b) => sum + (keringananMap[`${selectedJenisData.id}:${b.split("-")[0]}`] || 0),
           0
         );
-        setReliefTotal(relief);
-        const perMonth = Math.max(selectedJenisData.nominal - relief, 0);
-        setNominal(String(perMonth * bulanBayar.length));
+        setReliefTotal(totalRelief);
+
+        // Tarif per bulan = (tarif ipl - keringanan); jika rumah is_double, dikali 2
+        const total = bulanBayar.reduce((sum, b) => {
+          const relief = keringananMap[`${selectedJenisData.id}:${b.split("-")[0]}`] || 0;
+          const base = Math.max(selectedJenisData.nominal - relief, 0);
+          return sum + (isDouble ? base * 2 : base);
+        }, 0);
+
+        setNominal(String(total));
       } else {
         setReliefTotal(0);
       }
     } else {
       setReliefTotal(0);
     }
-  }, [selectedJenisData, bulanBayar, keringananMap]);
+  }, [selectedJenisData, bulanBayar, keringananMap, isDouble]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -332,19 +359,27 @@ export default function EditPaymentDialog({
                 type="number"
                 value={nominal}
                 onChange={(e) => setNominal(e.target.value)}
+                readOnly={selectedJenisData?.jenis === "wajib" && bulanBayar.length > 0}
                 placeholder="Masukkan nominal"
               />
               {selectedJenisData?.jenis === "wajib" && bulanBayar.length > 0 && (
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>
                     Nominal otomatis dihitung: (Rp {selectedJenisData.nominal.toLocaleString("id-ID")}
-                    {reliefTotal > 0 && (
-                      <> − Rp {reliefTotal.toLocaleString("id-ID")} keringanan</>
-                    )}) × {bulanBayar.length} bulan
+                    {reliefPerMonth > 0 && (
+                      <> − Rp {reliefPerMonth.toLocaleString("id-ID")} keringanan</>
+                    )}
+                    {isDouble && <> × 2 (rumah double)</>}
+                    ) × {bulanBayar.length} bulan
                   </p>
                   {reliefTotal > 0 && (
                     <p className="text-green-600">
-                      Keringanan diterapkan: Rp {reliefTotal.toLocaleString("id-ID")}
+                      Total keringanan diterapkan: Rp {reliefTotal.toLocaleString("id-ID")}
+                    </p>
+                  )}
+                  {isDouble && (
+                    <p className="text-amber-600">
+                      Blok rumah terdaftar sebagai rumah double, tarif dikalikan 2.
                     </p>
                   )}
                 </div>

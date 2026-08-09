@@ -9,11 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { User, Mail, Save, AlertCircle, CheckCircle2, KeyRound, Eye, EyeOff } from "lucide-react";
-import { BLOK_RUMAH_OPTIONS } from "@/lib/blok-rumah-options";
+import { useBlokRumahOptions } from "@/lib/use-blok-rumah-options";
 
 export default function ProfilePage() {
   const supabase = createClient();
   const router = useRouter();
+  const { blokOptions } = useBlokRumahOptions();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
@@ -221,7 +222,7 @@ export default function ProfilePage() {
               placeholder="Cari atau pilih blok rumah"
             />
             <datalist id="blok-rumah-options">
-              {BLOK_RUMAH_OPTIONS.map((blok) => (
+              {blokOptions.map((blok) => (
                 <option key={blok} value={blok} />
               ))}
             </datalist>

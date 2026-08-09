@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BLOK_RUMAH_OPTIONS } from "@/lib/blok-rumah-options";
+import { useBlokRumahOptions } from "@/lib/use-blok-rumah-options";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function RegisterPage() {
@@ -25,11 +25,33 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  const { blokOptions } = useBlokRumahOptions();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Validasi ketersediaan blok_rumah: tolak pendaftaran jika blok sudah dipakai
+    const blok = blokRumah.trim();
+    if (!blok) {
+      setError("Blok rumah wajib diisi.");
+      setLoading(false);
+      return;
+    }
+
+    // Tolak pendaftaran jika blok sudah terdaftar oleh pemilik lain
+    // (catatan: is_double hanya penanda blok milik pemilik yang sama, bukan izin 2 pemilik)
+    const { count, error: countError } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("blok_rumah", blok);
+
+    if (!countError && count !== null && count >= 1) {
+      setError(`Blok ${blok} sudah terdaftar oleh pemilik lain. Pendaftaran ditolak.`);
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -149,7 +171,7 @@ export default function RegisterPage() {
                 required
               />
               <datalist id="blok-rumah-options">
-                {BLOK_RUMAH_OPTIONS.map((blok) => (
+                {blokOptions.map((blok) => (
                   <option key={blok} value={blok} />
                 ))}
               </datalist>
