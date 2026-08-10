@@ -121,6 +121,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Gagal menyiapkan pemilik blok" }, { status: 500 });
     }
 
+    // Hitung total keringanan yang diterapkan untuk blok + jenis iuran (per bulan, per tahun)
+    const years = [...new Set((bulan_bayar as string[]).map((b) => b.split("-")[0]))];
+    const { data: keringananRows } = await adminClient
+      .from("keringanan_ipl")
+      .select("tahun, nilai_keringanan")
+      .eq("blok_rumah", blok_rumah)
+      .eq("jenis_iuran_id", jenis_iuran_id)
+      .eq("is_active", true)
+      .in("tahun", years);
+    const keringananByYear = new Map(
+      (keringananRows || []).map((k) => [k.tahun, Number(k.nilai_keringanan)])
+    );
+    const totalKeringanan = (bulan_bayar as string[]).reduce(
+      (sum, b) => sum + (keringananByYear.get(b.split("-")[0]) || 0),
+      0
+    );
+
     // Simpan pembayaran (status default 'verified' karena direkam langsung oleh admin)
     const finalStatus = status === "pending" ? "pending" : "verified";
     const { data: payment, error: insertError } = await adminClient
@@ -132,6 +149,7 @@ export async function POST(request: NextRequest) {
         tanggal_bayar: tanggal_bayar || new Date().toISOString().split("T")[0],
         bulan_bayar,
         nominal,
+        keringanan: totalKeringanan,
         bukti_transfer_url: bukti_transfer_url || null,
         status: finalStatus,
         verified_by: user.id,

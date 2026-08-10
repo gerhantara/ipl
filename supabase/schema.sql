@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS public.pembayaran (
   tanggal_bayar DATE NOT NULL DEFAULT CURRENT_DATE,
   bulan_bayar TEXT[] NOT NULL, -- Array of months like ['2024-01', '2024-02']
   nominal DECIMAL(12,2) NOT NULL,
+  keringanan DECIMAL(12,2) NOT NULL DEFAULT 0, -- total keringanan yang diterapkan pada nominal ini
   bukti_transfer_url TEXT,
   status TEXT DEFAULT 'verified' CHECK (status IN ('pending', 'verified', 'rejected')),
   verified_by UUID REFERENCES public.profiles(id),
@@ -279,6 +280,9 @@ ORDER BY bulan DESC;
 
 -- Migration: Add blok_rumah column to existing pembayaran table (run on existing database)
 -- ALTER TABLE public.pembayaran ADD COLUMN IF NOT EXISTS blok_rumah TEXT;
+
+-- Migration: Tambahkan kolom keringanan pada pembayaran (run on existing database)
+-- ALTER TABLE public.pembayaran ADD COLUMN IF NOT EXISTS keringanan DECIMAL(12,2) NOT NULL DEFAULT 0;
 
 -- Insert default jenis iuran
 INSERT INTO public.jenis_iuran (nama, deskripsi, nominal, jenis) VALUES

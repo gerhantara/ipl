@@ -314,6 +314,7 @@ export default function BayarIPLPage() {
         tanggal_bayar: tanggalBayar,
         bulan_bayar: bulanBayar,
         nominal: Number(nominal),
+        keringanan: reliefTotal,
         bukti_transfer_url: buktiUrl,
         status: "pending",
       });

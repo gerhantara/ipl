@@ -264,6 +264,7 @@ export default function EditPaymentDialog({
         tanggal_bayar: tanggalBayar,
         bulan_bayar: bulanBayar,
         nominal: Number(nominal),
+        keringanan: reliefTotal,
         status: newStatus,
         updated_at: new Date().toISOString(),
       };
