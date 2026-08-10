@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Users, Plus, Pencil, KeyRound, UserX, UserCheck, Eye, EyeOff, AlertCircle, CheckCircle2, Search, Upload, FileDown, FileSpreadsheet, X, Check, AlertTriangle } from "lucide-react";
+import { BLOK_RUMAH_OPTIONS } from "@/lib/blok-rumah-options";
 
 interface UserProfile {
   id: string;
@@ -47,11 +48,31 @@ interface UserProfile {
   updated_at: string;
 }
 
+interface RumahBlok {
+  blok_rumah: string;
+  is_aktif: boolean;
+}
+
+// Urutkan blok sesuai urutan kanonik BLOK_RUMAH_OPTIONS (mis. 1/1 ... 4/11, A-1 ... BC-14)
+function sortRumahBlocks(blocks: RumahBlok[]): RumahBlok[] {
+  const order = new Map<string, number>();
+  BLOK_RUMAH_OPTIONS.forEach((b, i) => order.set(b, i));
+  return [...blocks].sort((a, b) => {
+    const ia = order.get(a.blok_rumah);
+    const ib = order.get(b.blok_rumah);
+    if (ia !== undefined && ib !== undefined) return ia - ib;
+    if (ia !== undefined) return -1;
+    if (ib !== undefined) return 1;
+    return a.blok_rumah.localeCompare(b.blok_rumah);
+  });
+}
+
 export default function UsersPage() {
   const supabase = createClient();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [rumahBlocks, setRumahBlocks] = useState<RumahBlok[]>([]); // referensi blok dari tabel `rumah`
   
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -124,8 +145,27 @@ export default function UsersPage() {
     setLoading(false);
   };
 
+  const fetchRumahBlocks = async () => {
+    const { data } = await supabase
+      .from("rumah")
+      .select("blok_rumah, is_aktif");
+    if (data) setRumahBlocks(sortRumahBlocks(data as RumahBlok[]));
+  };
+
+  // Opsi blok dari tabel referensi `rumah`.
+  // Sertakan blok yang sedang dipilih walau tidak ada di referensi (mis. data lama)
+  // agar nilai yang tersimpan tetap terlihat saat edit.
+  const getBlokOptions = (current: string) => {
+    const known = new Set(rumahBlocks.map((r) => r.blok_rumah));
+    if (current && !known.has(current)) {
+      return [...rumahBlocks, { blok_rumah: current, is_aktif: false }];
+    }
+    return rumahBlocks;
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchRumahBlocks();
   }, []);
 
   const resetAddForm = () => {
@@ -639,12 +679,21 @@ export default function UsersPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="add_blok">Blok Rumah</Label>
-              <Input
-                id="add_blok"
-                value={newBlokRumah}
-                onChange={(e) => setNewBlokRumah(e.target.value)}
-                placeholder="A1, B12, dll"
-              />
+              <Select value={newBlokRumah} onValueChange={setNewBlokRumah}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih blok rumah" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getBlokOptions(newBlokRumah).map((r) => (
+                    <SelectItem key={r.blok_rumah} value={r.blok_rumah}>
+                      {r.blok_rumah}
+                      {!r.is_aktif && (
+                        <span className="ml-1 text-muted-foreground">(nonaktif)</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="add_kepemilikan">Status Kepemilikan</Label>
@@ -748,12 +797,21 @@ export default function UsersPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_blok">Blok Rumah</Label>
-              <Input
-                id="edit_blok"
-                value={editBlokRumah}
-                onChange={(e) => setEditBlokRumah(e.target.value)}
-                placeholder="A1, B12, dll"
-              />
+              <Select value={editBlokRumah} onValueChange={setEditBlokRumah}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih blok rumah" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getBlokOptions(editBlokRumah).map((r) => (
+                    <SelectItem key={r.blok_rumah} value={r.blok_rumah}>
+                      {r.blok_rumah}
+                      {!r.is_aktif && (
+                        <span className="ml-1 text-muted-foreground">(nonaktif)</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_kepemilikan">Status Kepemilikan</Label>
