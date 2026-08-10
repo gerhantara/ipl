@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   status_kepemilikan TEXT DEFAULT 'milik_sendiri' CHECK (status_kepemilikan IN ('milik_sendiri', 'kontrak')),
   tanggal_selesai_kontrak DATE,
   role TEXT DEFAULT 'warga' CHECK (role IN ('admin', 'warga')),
+  is_active BOOLEAN DEFAULT true, -- false = dinonaktifkan / belum diaktivasi admin (tidak bisa login)
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -67,6 +68,36 @@ DROP TRIGGER IF EXISTS prevent_role_change_trigger ON public.profiles;
 CREATE TRIGGER prevent_role_change_trigger
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.prevent_role_change();
+
+-- Fungsi: sinkronkan status ban auth.users dengan is_active pada profiles.
+-- Memastikan user dengan is_active = false TIDAK BISA login (banned_until diset),
+-- berlaku apa pun jalur yang mengubah is_active (API admin, trigger, atau edit manual).
+CREATE OR REPLACE FUNCTION public.sync_ban_on_is_active()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.is_active IS DISTINCT FROM OLD.is_active THEN
+    IF NEW.is_active = false THEN
+      UPDATE auth.users
+      SET banned_until = NOW() + INTERVAL '10 years'
+      WHERE id = NEW.id;
+    ELSE
+      UPDATE auth.users
+      SET banned_until = NULL
+      WHERE id = NEW.id;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS sync_ban_on_is_active_trigger ON public.profiles;
+CREATE TRIGGER sync_ban_on_is_active_trigger
+  AFTER UPDATE OF is_active ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.sync_ban_on_is_active();
+
+-- Migration: Tambahkan kolom is_active pada profiles & trigger ban otomatis (run pada database yang sudah ada)
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+-- UPDATE public.profiles SET is_active = true WHERE is_active IS NULL;
 
 -- Rumah table (master/reference data for house blocks)
 -- Used as reference for pendaftaran (registration) and data pembayaran (payments)
@@ -231,12 +262,13 @@ CREATE POLICY "Admin can manage pengeluaran" ON public.pengeluaran
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role)
+  INSERT INTO public.profiles (id, email, full_name, role, is_active)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'warga')
+    COALESCE(NEW.raw_user_meta_data->>'role', 'warga'),
+    false -- akun baru nonaktif sampai diaktivasi admin
   );
   RETURN NEW;
 END;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
@@ -17,20 +17,50 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Tampilkan pesan jika diarahkan ke sini karena akun nonaktif (dari middleware)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "inactive") {
+      setError("Akun Anda belum aktif / dinonaktifkan. Silakan hubungi admin untuk aktivasi.");
+      supabase.auth.signOut();
+    }
+  }, [supabase]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      setError(error.message);
+      // Akun yang diban/dinonaktifkan tidak bisa login
+      if (/banned|ban/i.test(error.message)) {
+        setError("Akun Anda dinonaktifkan. Silakan hubungi admin untuk aktivasi.");
+      } else {
+        setError(error.message);
+      }
       setLoading(false);
       return;
+    }
+
+    // Pertahanan ganda: user dengan is_active = false tidak boleh login
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_active")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      if (profile && profile.is_active === false) {
+        await supabase.auth.signOut();
+        setError("Akun Anda belum aktif / dinonaktifkan. Silakan hubungi admin untuk aktivasi.");
+        setLoading(false);
+        return;
+      }
     }
 
     router.push("/dashboard");
