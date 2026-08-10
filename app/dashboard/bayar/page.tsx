@@ -40,7 +40,8 @@ export default function BayarIPLPage() {
   const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
-  const [jenisIuranList, setJenisIuranList] = useState<JenisIuran[]>([]);
+  const [jenisIuranList, setJenisIuranList] = useState<JenisIuran[]>([]); // nominal sudah bersih (tarif - keringanan blok terpilih)
+  const [rawJenisIuranList, setRawJenisIuranList] = useState<JenisIuran[]>([]); // nominal asli dari tabel jenis_iuran
   const [rekeningList, setRekeningList] = useState<Rekening[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
 
@@ -122,7 +123,7 @@ export default function BayarIPLPage() {
         .select("*")
         .eq("aktif", true);
 
-      if (jenis) setJenisIuranList(jenis);
+      if (jenis) setRawJenisIuranList(jenis);
       if (rekening) setRekeningList(rekening);
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -160,6 +161,18 @@ export default function BayarIPLPage() {
     fetchData();
   }, [supabase]);
 
+  // Saat data keringanan blok berubah (termasuk saat admin berganti blok),
+  // bangun ulang daftar jenis iuran dengan nominal bersih = tarif - keringanan blok tsb
+  useEffect(() => {
+    const year = String(new Date().getFullYear());
+    setJenisIuranList(
+      rawJenisIuranList.map((j) => {
+        const relief = keringananMap[`${j.id}:${year}`] || 0;
+        return { ...j, nominal: Math.max(j.nominal - relief, 0) };
+      })
+    );
+  }, [rawJenisIuranList, keringananMap]);
+
   const selectedJenisData = jenisIuranList.find((j) => j.id === selectedJenis);
 
   // Keringanan per bulan untuk jenis & tahun bulan pertama terpilih
@@ -168,10 +181,6 @@ export default function BayarIPLPage() {
     selectedJenisData && bulanBayar.length > 0
       ? keringananMap[`${selectedJenisData.id}:${bulanBayar[0].split("-")[0]}`] || 0
       : 0;
-
-  // Tahun acuan untuk menampilkan tarif bersih pada select jenis iuran
-  const reliefYear =
-    bulanBayar.length > 0 ? bulanBayar[0].split("-")[0] : String(new Date().getFullYear());
 
   const handleBulanChange = (bulan: string) => {
     if (bulanBayar.includes(bulan)) {
@@ -194,20 +203,18 @@ export default function BayarIPLPage() {
   useEffect(() => {
     if (selectedJenisData && bulanBayar.length > 0) {
       if (selectedJenisData.jenis === "wajib") {
-        // Keringanan hanya berlaku untuk jenis iuran yang terpilih (via FK jenis_iuran_id),
-        // dihitung per bulan berdasarkan tahun pada bulan tersebut.
-        const totalRelief = bulanBayar.reduce(
-          (sum, b) => sum + (keringananMap[`${selectedJenisData.id}:${b.split("-")[0]}`] || 0),
+        // nominal pada jenisIuranList sudah berupa tarif bersih (tarif - keringanan blok terpilih)
+        const rawJenis = rawJenisIuranList.find((j) => j.id === selectedJenisData.id);
+        const reliefPerMonth = rawJenis
+          ? Math.max(rawJenis.nominal - selectedJenisData.nominal, 0)
+          : 0;
+        setReliefTotal(reliefPerMonth * bulanBayar.length);
+
+        // Jika rumah is_double, tarif per bulan dikali 2
+        const total = bulanBayar.reduce(
+          (sum) => sum + (isDouble ? selectedJenisData.nominal * 2 : selectedJenisData.nominal),
           0
         );
-        setReliefTotal(totalRelief);
-
-        // Tarif per bulan = (tarif ipl - keringanan); jika rumah is_double, dikali 2
-        const total = bulanBayar.reduce((sum, b) => {
-          const relief = keringananMap[`${selectedJenisData.id}:${b.split("-")[0]}`] || 0;
-          const base = Math.max(selectedJenisData.nominal - relief, 0);
-          return sum + (isDouble ? base * 2 : base);
-        }, 0);
 
         setNominal(String(total));
       } else {
@@ -216,7 +223,7 @@ export default function BayarIPLPage() {
     } else {
       setReliefTotal(0);
     }
-  }, [selectedJenisData, bulanBayar, keringananMap, isDouble]);
+  }, [selectedJenisData, bulanBayar, isDouble, rawJenisIuranList]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -494,15 +501,15 @@ export default function BayarIPLPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {jenisIuranList.map((jenis) => {
-                    const relief = keringananMap[`${jenis.id}:${reliefYear}`] || 0;
-                    const net = Math.max(jenis.nominal - relief, 0);
+                    const rawJenis = rawJenisIuranList.find((r) => r.id === jenis.id);
+                    const relief = rawJenis ? Math.max(rawJenis.nominal - jenis.nominal, 0) : 0;
                     return (
                       <SelectItem key={jenis.id} value={jenis.id}>
-                        {jenis.nama} - Rp {net.toLocaleString("id-ID")}
+                        {jenis.nama} - Rp {jenis.nominal.toLocaleString("id-ID")}
                         {relief > 0 && (
                           <>
                             <span className="ml-1 line-through text-muted-foreground">
-                              Rp {jenis.nominal.toLocaleString("id-ID")}
+                              Rp {rawJenis!.nominal.toLocaleString("id-ID")}
                             </span>
                             <Badge variant="secondary" className="ml-2">
                               keringanan {relief.toLocaleString("id-ID")}
