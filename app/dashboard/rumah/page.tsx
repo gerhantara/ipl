@@ -40,6 +40,7 @@ interface Rumah {
   id: string;
   blok_rumah: string;
   nama_pemilik: string | null;
+  nama_pasangan: string | null;
   tanggal_mulai: string | null;
   tanggal_selesai: string | null;
   is_double: boolean;
@@ -67,6 +68,7 @@ export default function RumahPage() {
   // Form states
   const [blokRumah, setBlokRumah] = useState("");
   const [namaPemilik, setNamaPemilik] = useState("");
+  const [namaPasangan, setNamaPasangan] = useState("");
   const [tanggalMulai, setTanggalMulai] = useState("");
   const [tanggalSelesai, setTanggalSelesai] = useState("");
   const [isDouble, setIsDouble] = useState(false);
@@ -108,6 +110,7 @@ export default function RumahPage() {
   const resetForm = () => {
     setBlokRumah("");
     setNamaPemilik("");
+    setNamaPasangan("");
     setTanggalMulai("");
     setTanggalSelesai("");
     setIsDouble(false);
@@ -130,6 +133,7 @@ export default function RumahPage() {
     const payload = {
       blok_rumah: blokRumah.trim(),
       nama_pemilik: namaPemilik.trim() || null,
+      nama_pasangan: namaPasangan.trim() || null,
       tanggal_mulai: tanggalMulai || null,
       tanggal_selesai: tanggalSelesai || null,
       is_double: isDouble,
@@ -165,6 +169,7 @@ export default function RumahPage() {
     setEditingId(item.id);
     setBlokRumah(item.blok_rumah);
     setNamaPemilik(item.nama_pemilik || "");
+    setNamaPasangan(item.nama_pasangan || "");
     setTanggalMulai(item.tanggal_mulai || "");
     setTanggalSelesai(item.tanggal_selesai || "");
     setIsDouble(item.is_double);
@@ -199,7 +204,8 @@ export default function RumahPage() {
     if (!q) return true;
     return (
       item.blok_rumah.toLowerCase().includes(q) ||
-      (item.nama_pemilik || "").toLowerCase().includes(q)
+      (item.nama_pemilik || "").toLowerCase().includes(q) ||
+      (item.nama_pasangan || "").toLowerCase().includes(q)
     );
   });
 
@@ -284,6 +290,15 @@ export default function RumahPage() {
                   placeholder="Nama pemilik rumah"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="namaPasangan">Nama Pasangan</Label>
+                <Input
+                  id="namaPasangan"
+                  value={namaPasangan}
+                  onChange={(e) => setNamaPasangan(e.target.value)}
+                  placeholder="Nama pasangan (opsional)"
+                />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="tanggalMulai">Tanggal Mulai</Label>
@@ -340,7 +355,7 @@ export default function RumahPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           className="pl-9"
-          placeholder="Cari blok atau nama pemilik..."
+          placeholder="Cari blok, pemilik, atau pasangan..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -379,7 +394,14 @@ export default function RumahPage() {
                         <span className="font-medium">{item.blok_rumah}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{item.nama_pemilik || "-"}</TableCell>
+                    <TableCell>
+                      <div>{item.nama_pemilik || "-"}</div>
+                      {item.nama_pasangan && (
+                        <div className="text-muted-foreground text-xs">
+                          Pasangan: {item.nama_pasangan}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm">
                       <div>{formatDate(item.tanggal_mulai)}</div>
                       {item.tanggal_selesai && (

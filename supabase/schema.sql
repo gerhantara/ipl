@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS public.rumah (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   blok_rumah TEXT NOT NULL UNIQUE,
   nama_pemilik TEXT,
+  nama_pasangan TEXT,
   tanggal_mulai DATE,
   tanggal_selesai DATE,
   is_double BOOLEAN DEFAULT false, -- true jika blok ini adalah rumah kedua milik pemilik yang sama
@@ -277,6 +278,9 @@ FROM public.pembayaran
 WHERE status = 'verified'
 GROUP BY TO_CHAR(tanggal_bayar, 'YYYY-MM')
 ORDER BY bulan DESC;
+
+-- Migration: Tambahkan kolom nama_pasangan pada tabel rumah (run on existing database)
+-- ALTER TABLE public.rumah ADD COLUMN IF NOT EXISTS nama_pasangan TEXT;
 
 -- Migration: Add blok_rumah column to existing pembayaran table (run on existing database)
 -- ALTER TABLE public.pembayaran ADD COLUMN IF NOT EXISTS blok_rumah TEXT;
