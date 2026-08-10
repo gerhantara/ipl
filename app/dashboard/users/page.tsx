@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Users, Plus, Pencil, KeyRound, UserX, UserCheck, Eye, EyeOff, AlertCircle, CheckCircle2, Search, Upload, FileDown, FileSpreadsheet, X, Check, AlertTriangle } from "lucide-react";
 import { BLOK_RUMAH_OPTIONS } from "@/lib/blok-rumah-options";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface UserProfile {
   id: string;
@@ -679,21 +680,25 @@ export default function UsersPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="add_blok">Blok Rumah</Label>
-              <Select value={newBlokRumah} onValueChange={setNewBlokRumah}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih blok rumah" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getBlokOptions(newBlokRumah).map((r) => (
-                    <SelectItem key={r.blok_rumah} value={r.blok_rumah}>
+              <SearchableSelect
+                id="add_blok"
+                value={newBlokRumah}
+                onValueChange={setNewBlokRumah}
+                placeholder="Pilih blok rumah"
+                searchPlaceholder="Cari blok rumah..."
+                options={getBlokOptions(newBlokRumah).map((r) => ({
+                  value: r.blok_rumah,
+                  label: (
+                    <>
                       {r.blok_rumah}
                       {!r.is_aktif && (
                         <span className="ml-1 text-muted-foreground">(nonaktif)</span>
                       )}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </>
+                  ),
+                  searchLabel: r.blok_rumah,
+                }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="add_kepemilikan">Status Kepemilikan</Label>
@@ -797,21 +802,25 @@ export default function UsersPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_blok">Blok Rumah</Label>
-              <Select value={editBlokRumah} onValueChange={setEditBlokRumah}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih blok rumah" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getBlokOptions(editBlokRumah).map((r) => (
-                    <SelectItem key={r.blok_rumah} value={r.blok_rumah}>
+              <SearchableSelect
+                id="edit_blok"
+                value={editBlokRumah}
+                onValueChange={setEditBlokRumah}
+                placeholder="Pilih blok rumah"
+                searchPlaceholder="Cari blok rumah..."
+                options={getBlokOptions(editBlokRumah).map((r) => ({
+                  value: r.blok_rumah,
+                  label: (
+                    <>
                       {r.blok_rumah}
                       {!r.is_aktif && (
                         <span className="ml-1 text-muted-foreground">(nonaktif)</span>
                       )}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </>
+                  ),
+                  searchLabel: r.blok_rumah,
+                }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_kepemilikan">Status Kepemilikan</Label>

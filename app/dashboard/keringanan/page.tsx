@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useBlokRumahOptions } from "@/lib/use-blok-rumah-options";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface JenisIuran {
   id: string;
@@ -184,14 +185,13 @@ export default function KeringananIPLPage() {
               {error && <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">{error}</div>}
               <div className="space-y-2">
                 <Label>Blok Rumah</Label>
-                <Select value={blokRumah} onValueChange={setBlokRumah}>
-                  <SelectTrigger><SelectValue placeholder="Pilih blok rumah" /></SelectTrigger>
-                  <SelectContent>
-                    {blokOptions.map((blok) => (
-                      <SelectItem key={blok} value={blok}>{blok}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={blokRumah}
+                  onValueChange={setBlokRumah}
+                  placeholder="Pilih blok rumah"
+                  searchPlaceholder="Cari blok rumah..."
+                  options={blokOptions.map((blok) => ({ value: blok, label: blok }))}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Tahun</Label>

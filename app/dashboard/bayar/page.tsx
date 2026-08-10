@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface JenisIuran {
   id: string;
@@ -418,18 +419,16 @@ export default function BayarIPLPage() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Rekam untuk Blok</p>
-                      <Select value={selectedBlok} onValueChange={handleBlokChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih blok rumah" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {rumahList.map((r) => (
-                            <SelectItem key={r.blok_rumah} value={r.blok_rumah}>
-                              {r.blok_rumah}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        value={selectedBlok}
+                        onValueChange={handleBlokChange}
+                        placeholder="Pilih blok rumah"
+                        searchPlaceholder="Cari blok rumah..."
+                        options={rumahList.map((r) => ({
+                          value: r.blok_rumah,
+                          label: r.blok_rumah,
+                        }))}
+                      />
                     </div>
                   </div>
                   {selectedBlok && (

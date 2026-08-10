@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useBlokRumahOptions } from "@/lib/use-blok-rumah-options";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -161,20 +162,14 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="blokRumah">Blok Rumah</Label>
-              <Input
+              <SearchableSelect
                 id="blokRumah"
-                type="text"
-                list="blok-rumah-options"
-                placeholder="Cari atau pilih blok rumah"
                 value={blokRumah}
-                onChange={(e) => setBlokRumah(e.target.value)}
-                required
+                onValueChange={setBlokRumah}
+                placeholder="Pilih blok rumah"
+                searchPlaceholder="Cari blok rumah..."
+                options={blokOptions.map((blok) => ({ value: blok, label: blok }))}
               />
-              <datalist id="blok-rumah-options">
-                {blokOptions.map((blok) => (
-                  <option key={blok} value={blok} />
-                ))}
-              </datalist>
             </div>
             <div className="space-y-2">
               <Label htmlFor="status_kepemilikan">Status Kepemilikan Rumah</Label>

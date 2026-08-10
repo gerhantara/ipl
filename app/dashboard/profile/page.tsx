@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { User, Mail, Save, AlertCircle, CheckCircle2, KeyRound, Eye, EyeOff } from "lucide-react";
 import { useBlokRumahOptions } from "@/lib/use-blok-rumah-options";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 export default function ProfilePage() {
   const supabase = createClient();
@@ -214,18 +215,14 @@ export default function ProfilePage() {
           {/* Blok Rumah */}
           <div className="space-y-2">
             <Label htmlFor="blok_rumah">Blok Rumah</Label>
-            <Input
+            <SearchableSelect
               id="blok_rumah"
               value={blokRumah}
-              onChange={(e) => setBlokRumah(e.target.value)}
-              list="blok-rumah-options"
-              placeholder="Cari atau pilih blok rumah"
+              onValueChange={setBlokRumah}
+              placeholder="Pilih blok rumah"
+              searchPlaceholder="Cari blok rumah..."
+              options={blokOptions.map((blok) => ({ value: blok, label: blok }))}
             />
-            <datalist id="blok-rumah-options">
-              {blokOptions.map((blok) => (
-                <option key={blok} value={blok} />
-              ))}
-            </datalist>
           </div>
 
           {/* Status Kepemilikan */}
