@@ -167,6 +167,10 @@ export default function EditPaymentDialog({
       ? keringananMap[`${selectedJenisData.id}:${bulanBayar[0].split("-")[0]}`] || 0
       : 0;
 
+  // Tahun acuan untuk menampilkan tarif bersih pada select jenis iuran
+  const reliefYear =
+    bulanBayar.length > 0 ? bulanBayar[0].split("-")[0] : String(new Date().getFullYear());
+
   const handleBulanChange = (bulan: string) => {
     if (bulanBayar.includes(bulan)) {
       setBulanBayar(bulanBayar.filter((b) => b !== bulan));
@@ -315,14 +319,28 @@ export default function EditPaymentDialog({
                   <SelectValue placeholder="Pilih jenis iuran" />
                 </SelectTrigger>
                 <SelectContent>
-                  {jenisIuranList.map((jenis) => (
-                    <SelectItem key={jenis.id} value={jenis.id}>
-                      {jenis.nama} - Rp {jenis.nominal.toLocaleString("id-ID")}
-                      <Badge variant={jenis.jenis === "wajib" ? "default" : "secondary"} className="ml-2">
-                        {jenis.jenis}
-                      </Badge>
-                    </SelectItem>
-                  ))}
+                  {jenisIuranList.map((jenis) => {
+                    const relief = keringananMap[`${jenis.id}:${reliefYear}`] || 0;
+                    const net = Math.max(jenis.nominal - relief, 0);
+                    return (
+                      <SelectItem key={jenis.id} value={jenis.id}>
+                        {jenis.nama} - Rp {net.toLocaleString("id-ID")}
+                        {relief > 0 && (
+                          <>
+                            <span className="ml-1 line-through text-muted-foreground">
+                              Rp {jenis.nominal.toLocaleString("id-ID")}
+                            </span>
+                            <Badge variant="secondary" className="ml-2">
+                              keringanan {relief.toLocaleString("id-ID")}
+                            </Badge>
+                          </>
+                        )}
+                        <Badge variant={jenis.jenis === "wajib" ? "default" : "secondary"} className="ml-2">
+                          {jenis.jenis}
+                        </Badge>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
