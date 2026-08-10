@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       .select("tahun, nilai_keringanan")
       .eq("blok_rumah", blok_rumah)
       .eq("jenis_iuran_id", jenis_iuran_id)
-      .eq("is_active", true)
+      .eq("is_active", 1) // kompatibel smallint/boolean
       .in("tahun", years);
     const keringananByYear = new Map(
       (keringananRows || []).map((k) => [k.tahun, Number(k.nilai_keringanan)])

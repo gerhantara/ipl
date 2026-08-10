@@ -133,7 +133,7 @@ export default function EditPaymentDialog({
               .from("keringanan_ipl")
               .select("tahun, nilai_keringanan, jenis_iuran_id")
               .eq("blok_rumah", profile.blok_rumah)
-              .eq("is_active", true);
+              .eq("is_active", 1); // kompatibel smallint/boolean
             if (keringanan) {
               const map: Record<string, number> = {};
               keringanan.forEach((k: { tahun: string; nilai_keringanan: number; jenis_iuran_id: string }) => {

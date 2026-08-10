@@ -120,7 +120,7 @@ export default function KeringananIPLPage() {
       tahun,
       jenis_iuran_id: jenisIuranId,
       nilai_keringanan: Number(nilaiKeringanan),
-      is_active: isActive,
+      is_active: isActive ? 1 : 0, // kompatibel kolom smallint/boolean
     };
 
     // Upsert: unique (blok_rumah, tahun, jenis_iuran_id) akan memperbarui data yang sama
@@ -146,7 +146,7 @@ export default function KeringananIPLPage() {
     setTahun(item.tahun);
     setJenisIuranId(item.jenis_iuran_id);
     setNilaiKeringanan(String(item.nilai_keringanan));
-    setIsActive(item.is_active);
+    setIsActive(Boolean(item.is_active));
     setDialogOpen(true);
   };
 

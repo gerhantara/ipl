@@ -86,11 +86,13 @@ export default function BayarIPLPage() {
     setOwnerName(rumahData?.nama_pemilik || null);
 
     // Keringanan per jenis iuran (FK jenis_iuran_id) + per tahun
+    // is_active dibandingkan dengan 1 (bukan true) agar kompatibel dengan
+    // kolom bertipe smallint maupun boolean di database
     const { data: keringanan } = await supabase
       .from("keringanan_ipl")
       .select("tahun, nilai_keringanan, jenis_iuran_id")
       .eq("blok_rumah", blok)
-      .eq("is_active", true);
+      .eq("is_active", 1);
     if (keringanan) {
       const map: Record<string, number> = {};
       keringanan.forEach((k: { tahun: string; nilai_keringanan: number; jenis_iuran_id: string }) => {
