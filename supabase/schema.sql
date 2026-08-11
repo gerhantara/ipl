@@ -259,14 +259,25 @@ CREATE POLICY "Admin can manage pengeluaran" ON public.pengeluaran
   );
 
 -- Function to handle new user signup
+-- Mencatat SELURUH data pendaftaran dari form register (raw_user_meta_data)
+-- ke tabel profiles: full_name, phone, pasangan, blok_rumah,
+-- status_kepemilikan, tanggal_selesai_kontrak, dan role.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role, is_active)
+  INSERT INTO public.profiles (
+    id, email, full_name, phone, pasangan, blok_rumah,
+    status_kepemilikan, tanggal_selesai_kontrak, role, is_active
+  )
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
+    NULLIF(NEW.raw_user_meta_data->>'phone', ''),
+    NULLIF(NEW.raw_user_meta_data->>'pasangan', ''),
+    NULLIF(NEW.raw_user_meta_data->>'blok_rumah', ''),
+    COALESCE(NULLIF(NEW.raw_user_meta_data->>'status_kepemilikan', ''), 'milik_sendiri'),
+    NULLIF(NEW.raw_user_meta_data->>'tanggal_selesai_kontrak', '')::date,
     COALESCE(NEW.raw_user_meta_data->>'role', 'warga'),
     false -- akun baru nonaktif sampai diaktivasi admin
   );

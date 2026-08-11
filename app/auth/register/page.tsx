@@ -54,7 +54,7 @@ export default function RegisterPage() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -76,6 +76,38 @@ export default function RegisterPage() {
       setError(error.message);
       setLoading(false);
       return;
+    }
+
+    // Pastikan seluruh isian form tersimpan ke tabel `profiles`.
+    // Trigger `handle_new_user` diharapkan membuat baris profile, tapi sebagai
+    // jaring pengaman (mis. trigger belum ada di database / hanya menyimpan
+    // sebagian field), simpan ulang semua data via endpoint server.
+    if (signUpData?.user) {
+      try {
+        const res = await fetch("/api/auth/register-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: signUpData.user.id,
+            fullName,
+            phone,
+            pasangan,
+            blokRumah,
+            statusKepemilikan,
+            tanggalSelesaiKontrak,
+          }),
+        });
+
+        if (!res.ok) {
+          const result = await res.json().catch(() => null);
+          console.error(
+            "Gagal menyimpan profile pendaftaran:",
+            result?.error || res.status
+          );
+        }
+      } catch (err) {
+        console.error("Gagal menyimpan profile pendaftaran:", err);
+      }
     }
 
     setSuccess(true);
