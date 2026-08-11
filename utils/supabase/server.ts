@@ -14,9 +14,20 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
+            cookiesToSet.forEach(({ name, value, options }) => {
+              const cookieOptions = { ...options }
+              if (value) {
+                // Jadikan session cookie: tanpa Max-Age/Expires agar
+                // session hilang saat browser (tab) ditutup.
+                delete cookieOptions.maxAge
+                delete cookieOptions.expires
+              } else {
+                // Cookie kosong = penghapusan (signOut): hapus dengan benar
+                cookieOptions.maxAge = 0
+                cookieOptions.expires = new Date(0)
+              }
+              cookieStore.set(name, value, cookieOptions)
+            })
           } catch {
             // The `setAll` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing

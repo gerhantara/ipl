@@ -19,9 +19,20 @@ export async function updateSession(request: NextRequest) {
           supabaseResponse = NextResponse.next({
             request,
           })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const cookieOptions = { ...options }
+            if (value) {
+              // Jadikan session cookie: tanpa Max-Age/Expires agar
+              // session hilang saat browser (tab) ditutup.
+              delete cookieOptions.maxAge
+              delete cookieOptions.expires
+            } else {
+              // Cookie kosong = penghapusan (signOut): hapus dengan benar
+              cookieOptions.maxAge = 0
+              cookieOptions.expires = new Date(0)
+            }
+            supabaseResponse.cookies.set(name, value, cookieOptions)
+          })
         },
       },
     }
