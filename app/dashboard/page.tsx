@@ -24,6 +24,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+// Rekap pembayaran hanya untuk jenis iuran IPL Bulanan
+const IPL_JENIS_IURAN_ID = "a327f3bf-b645-4064-a26b-808bb0976826";
+
 interface Stats {
   totalPemasukan: number;
   totalPengeluaran: number;
@@ -93,7 +96,8 @@ export default function DashboardPage() {
         const { data: pemasukan } = await supabase
           .from("pembayaran")
           .select("nominal, status, tanggal_bayar")
-          .eq("status", "verified");
+          .eq("status", "verified")
+          .eq("jenis_iuran_id", IPL_JENIS_IURAN_ID);
 
         const { data: pengeluaran } = await supabase
           .from("pengeluaran")
@@ -147,7 +151,8 @@ export default function DashboardPage() {
         const { data: myPayments } = await supabase
           .from("pembayaran")
           .select("nominal, status")
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .eq("jenis_iuran_id", IPL_JENIS_IURAN_ID);
 
         const totalPemasukan = myPayments
           ?.filter((p) => p.status === "verified")
@@ -173,7 +178,8 @@ export default function DashboardPage() {
       const { data: allPayments } = await supabase
         .from("pembayaran")
         .select("user_id, bulan_bayar")
-        .eq("status", "verified");
+        .eq("status", "verified")
+        .eq("jenis_iuran_id", IPL_JENIS_IURAN_ID);
 
       // Build user -> paid months map (only for last 12 months)
       const userPaidMonths: Record<string, Set<string>> = {};
