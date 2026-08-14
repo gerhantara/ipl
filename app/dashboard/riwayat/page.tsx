@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Eye, Pencil } from "lucide-react";
+import { Check, Eye, Pencil, Trash } from "lucide-react";
 import EditPaymentDialog from "@/components/edit-payment-dialog";
 
 interface Pembayaran {
@@ -38,6 +38,7 @@ export default function RiwayatPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -86,6 +87,32 @@ export default function RiwayatPage() {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
+
+  const handleVerifikasi = async (p: Pembayaran) => {
+    if (!confirm("Verifikasi pembayaran ini?")) return;
+    setActionLoading(p.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("pembayaran")
+      .update({
+        status: "verified",
+        verified_by: user?.id,
+        verified_at: new Date().toISOString(),
+      })
+      .eq("id", p.id);
+    if (error) setErrorMsg(error.message);
+    setActionLoading(null);
+    fetchData();
+  };
+
+  const handleHapus = async (p: Pembayaran) => {
+    if (!confirm("Yakin ingin menghapus pembayaran ini?")) return;
+    setActionLoading(p.id);
+    const { error } = await supabase.from("pembayaran").delete().eq("id", p.id);
+    if (error) setErrorMsg(error.message);
+    setActionLoading(null);
+    fetchData();
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -159,7 +186,7 @@ export default function RiwayatPage() {
                     <TableHead className="text-right">Nominal</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-center">Bukti</TableHead>
-                      {userRole !== "admin" && (
+                      {userRole === "admin" && (
                         <TableHead className="text-center">Aksi</TableHead>
                       )}
                     </TableRow>
@@ -212,17 +239,38 @@ export default function RiwayatPage() {
                           </Dialog>
                         )}
                       </TableCell>
-                      {userRole !== "admin" && (
+                      {userRole === "admin" && (
                         <TableCell className="text-center">
                           {(p.status === "pending" || p.status === "rejected") && (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => { setEditId(p.id); setEditOpen(true); }}
-                              title="Edit pembayaran"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
+                            <div className="flex gap-2 justify-center">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                disabled={actionLoading === p.id}
+                                onClick={() => handleVerifikasi(p)}
+                                title="Verifikasi pembayaran"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                disabled={actionLoading === p.id}
+                                onClick={() => { setEditId(p.id); setEditOpen(true); }}
+                                title="Edit pembayaran"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                disabled={actionLoading === p.id}
+                                onClick={() => handleHapus(p)}
+                                title="Hapus pembayaran"
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
                           )}
                         </TableCell>
                       )}

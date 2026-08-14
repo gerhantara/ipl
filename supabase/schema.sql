@@ -247,6 +247,10 @@ CREATE POLICY "Owner can update own pending/rejected pembayaran" ON public.pemba
     auth.uid() = user_id
     AND status IN ('pending', 'rejected')
   );
+CREATE POLICY "Admin can delete pembayaran" ON public.pembayaran
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
 
 -- Policies for pengeluaran
 CREATE POLICY "Pengeluaran are viewable by admin" ON public.pengeluaran
