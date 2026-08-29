@@ -67,7 +67,8 @@ export async function POST(request: NextRequest) {
       !jenis_iuran_id ||
       !Array.isArray(bulan_bayar) ||
       bulan_bayar.length === 0 ||
-      typeof nominal !== "number"
+      typeof nominal !== "number" ||
+      nominal <= 0
     ) {
       return NextResponse.json({ error: "Data pembayaran tidak lengkap" }, { status: 400 });
     }

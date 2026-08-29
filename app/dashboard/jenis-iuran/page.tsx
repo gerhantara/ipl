@@ -78,8 +78,8 @@ export default function JenisIuranPage() {
     setSubmitting(true);
     setError(null);
 
-    if (!nama || !nominal) {
-      setError("Nama dan nominal wajib diisi");
+    if (!nama) {
+      setError("Nama wajib diisi");
       setSubmitting(false);
       return;
     }
@@ -87,7 +87,7 @@ export default function JenisIuranPage() {
     const payload = {
       nama,
       deskripsi: deskripsi || null,
-      nominal: Number(nominal),
+      nominal: nominal === "" ? 0 : Number(nominal),
       jenis,
       aktif,
     };

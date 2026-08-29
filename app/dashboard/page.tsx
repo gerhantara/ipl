@@ -47,6 +47,16 @@ interface WargaPaymentRow {
   paidCount: number;
 }
 
+interface JenisIuranMonitorRow {
+  id: string;
+  nama: string;
+  jenis: string;
+  nominal: number;
+  totalTerkumpul: number;
+  wargaBayar: number;
+  totalBulanDibayar: number;
+}
+
 export default function DashboardPage() {
   const supabase = createClient();
   const [stats, setStats] = useState<Stats>({
@@ -61,6 +71,10 @@ export default function DashboardPage() {
   // Payment matrix state
   const [last12Months, setLast12Months] = useState<{ key: string; label: string }[]>([]);
   const [wargaPayments, setWargaPayments] = useState<WargaPaymentRow[]>([]);
+
+  // Monitoring per jenis iuran state (admin)
+  const [jenisIuranMonitoring, setJenisIuranMonitoring] = useState<JenisIuranMonitorRow[]>([]);
+  const [totalWarga, setTotalWarga] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -167,23 +181,32 @@ export default function DashboardPage() {
         });
       }
 
-      // Fetch all warga profiles and payments (visible to all authenticated users)
+      // Fetch all warga profiles (visible to all authenticated users)
       const { data: wargaProfiles } = await supabase
         .from("profiles")
         .select("id, full_name, blok_rumah")
         .eq("role", "warga")
         .order("full_name", { ascending: true });
 
-      // Fetch all verified payments with bulan_bayar
+      const totalWarga = wargaProfiles?.length || 0;
+      setTotalWarga(totalWarga);
+
+      // Fetch all verified payments with jenis iuran (for matrix & monitoring)
       const { data: allPayments } = await supabase
         .from("pembayaran")
-        .select("user_id, bulan_bayar")
-        .eq("status", "verified")
-        .eq("jenis_iuran_id", IPL_JENIS_IURAN_ID);
+        .select("user_id, bulan_bayar, jenis_iuran_id, nominal")
+        .eq("status", "verified");
 
-      // Build user -> paid months map (only for last 12 months)
+      // Fetch jenis iuran master data
+      const { data: jenisIuranList } = await supabase
+        .from("jenis_iuran")
+        .select("id, nama, jenis, nominal")
+        .order("created_at", { ascending: true });
+
+      // Build user -> paid months map (IPL only, only for last 12 months)
       const userPaidMonths: Record<string, Set<string>> = {};
       allPayments?.forEach((payment) => {
+        if (payment.jenis_iuran_id !== IPL_JENIS_IURAN_ID) return;
         if (!payment.user_id || !payment.bulan_bayar) return;
         if (!userPaidMonths[payment.user_id]) {
           userPaidMonths[payment.user_id] = new Set();
@@ -194,6 +217,52 @@ export default function DashboardPage() {
           }
         });
       });
+
+      // Build monitoring per jenis iuran (admin)
+      const jenisMap: Record<string, JenisIuranMonitorRow> = {};
+      (jenisIuranList || []).forEach((j) => {
+        jenisMap[j.id] = {
+          id: j.id,
+          nama: j.nama,
+          jenis: j.jenis,
+          nominal: Number(j.nominal),
+          totalTerkumpul: 0,
+          wargaBayar: 0,
+          totalBulanDibayar: 0,
+        };
+      });
+
+      const paidWargaPerJenis: Record<string, Set<string>> = {};
+      const bulanPerJenis: Record<string, Set<string>> = {};
+
+      allPayments?.forEach((payment) => {
+        if (!payment.jenis_iuran_id || !jenisMap[payment.jenis_iuran_id]) return;
+        jenisMap[payment.jenis_iuran_id].totalTerkumpul += Number(payment.nominal);
+        if (!payment.user_id) return;
+
+        if (!paidWargaPerJenis[payment.jenis_iuran_id]) {
+          paidWargaPerJenis[payment.jenis_iuran_id] = new Set();
+        }
+        paidWargaPerJenis[payment.jenis_iuran_id].add(payment.user_id);
+
+        if (Array.isArray(payment.bulan_bayar)) {
+          if (!bulanPerJenis[payment.jenis_iuran_id]) {
+            bulanPerJenis[payment.jenis_iuran_id] = new Set();
+          }
+          (payment.bulan_bayar as string[]).forEach((bulan: string) => {
+            if (monthKeys.has(bulan)) {
+              bulanPerJenis[payment.jenis_iuran_id].add(`${payment.user_id}|${bulan}`);
+            }
+          });
+        }
+      });
+
+      Object.values(jenisMap).forEach((j) => {
+        j.wargaBayar = paidWargaPerJenis[j.id]?.size || 0;
+        j.totalBulanDibayar = bulanPerJenis[j.id]?.size || 0;
+      });
+
+      setJenisIuranMonitoring(Object.values(jenisMap));
 
       // Build payment rows (convert Set to sorted array for React-safe state)
       const rows: WargaPaymentRow[] = (wargaProfiles || []).map((warga) => {
@@ -346,6 +415,79 @@ export default function DashboardPage() {
                 <Bar dataKey="pengeluaran" name="Pengeluaran" fill="#ef4444" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Monitoring per Jenis Iuran - Admin only */}
+      {userRole === "admin" && jenisIuranMonitoring.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Monitoring Pembayaran per Jenis Iuran</CardTitle>
+            <CardDescription>
+              Rekap pemasukan dan cakupan pembayaran per jenis iuran tahun 2026
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Jenis Iuran</TableHead>
+                    <TableHead className="text-right">Nominal/Bulan</TableHead>
+                    <TableHead className="text-center">Warga Bayar</TableHead>
+                    <TableHead className="text-right">Total Terkumpul</TableHead>
+                    <TableHead className="min-w-[220px]">Cakupan</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {jenisIuranMonitoring.map((j) => {
+                    const coverage =
+                      totalWarga > 0 ? Math.round((j.wargaBayar / totalWarga) * 100) : 0;
+                    return (
+                      <TableRow key={j.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {j.nama}
+                            <Badge variant={j.jenis === "wajib" ? "default" : "secondary"}>
+                              {j.jenis}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(j.nominal)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="secondary">
+                            {j.wargaBayar}/{totalWarga}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(j.totalTerkumpul)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${
+                                  coverage >= 80
+                                    ? "bg-green-500"
+                                    : coverage >= 50
+                                      ? "bg-yellow-500"
+                                      : "bg-red-500"
+                                }`}
+                                style={{ width: `${coverage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground w-9 text-right">
+                              {coverage}%
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -238,6 +238,11 @@ export default function BayarIPLPage() {
       setLoading(false);
       return;
     }
+    if (Number(nominal) <= 0) {
+      setError("Nominal pembayaran tidak boleh 0");
+      setLoading(false);
+      return;
+    }
     if (!isAdmin && !buktiFile) {
       setError("Bukti transfer wajib diunggah");
       setLoading(false);
