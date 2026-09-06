@@ -47,6 +47,14 @@ interface WargaPaymentRow {
   paidCount: number;
 }
 
+interface WargaProfile {
+  id: string;
+  full_name: string | null;
+  blok_rumah: string | null;
+  status_kepemilikan: string | null;
+  is_active: boolean | null;
+}
+
 interface JenisIuranMonitorRow {
   id: string;
   nama: string;
@@ -182,11 +190,25 @@ export default function DashboardPage() {
       }
 
       // Fetch all warga profiles (visible to all authenticated users)
-      const { data: wargaProfiles } = await supabase
+      const { data: wargaProfilesData } = await supabase
         .from("profiles")
-        .select("id, full_name, blok_rumah")
+        .select("id, full_name, blok_rumah, status_kepemilikan, is_active")
         .eq("role", "warga")
         .order("full_name", { ascending: true });
+
+      const wargaByBlok = new Map<string, WargaProfile>();
+      (wargaProfilesData || [])
+        .filter((warga) => warga.is_active !== false)
+        .forEach((warga) => {
+          const key = warga.blok_rumah || warga.id;
+          const current = wargaByBlok.get(key);
+          const isActiveContractor = warga.status_kepemilikan === "kontrak" && warga.is_active === true;
+          const currentIsActiveContractor = current?.status_kepemilikan === "kontrak" && current.is_active === true;
+          if (!current || (isActiveContractor && !currentIsActiveContractor)) {
+            wargaByBlok.set(key, warga as WargaProfile);
+          }
+        });
+      const wargaProfiles = Array.from(wargaByBlok.values());
 
       const totalWarga = wargaProfiles?.length || 0;
       setTotalWarga(totalWarga);

@@ -41,7 +41,7 @@ export default function BayarIPLPage() {
   const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
-  const [jenisIuranList, setJenisIuranList] = useState<JenisIuran[]>([]); // nominal sudah bersih (tarif - keringanan blok terpilih)
+  const [jenisIuranList, setJenisIuranList] = useState<JenisIuran[]>([]); // nominal dasar untuk tampilan (tarif - keringanan)
   const [rawJenisIuranList, setRawJenisIuranList] = useState<JenisIuran[]>([]); // nominal asli dari tabel jenis_iuran
   const [rekeningList, setRekeningList] = useState<Rekening[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -164,8 +164,8 @@ export default function BayarIPLPage() {
     fetchData();
   }, [supabase]);
 
-  // Saat data keringanan blok berubah (termasuk saat admin berganti blok),
-  // bangun ulang daftar jenis iuran dengan nominal bersih = tarif - keringanan blok tsb
+  // Saat data keringanan blok berubah, tampilkan tarif setelah keringanan.
+  // Perhitungan pembayaran aktual di bawah tetap menerapkan keringanan satu kali.
   useEffect(() => {
     const year = String(new Date().getFullYear());
     setJenisIuranList(
@@ -206,16 +206,19 @@ export default function BayarIPLPage() {
   useEffect(() => {
     if (selectedJenisData && bulanBayar.length > 0) {
       if (selectedJenisData.jenis === "wajib") {
-        // nominal pada jenisIuranList sudah berupa tarif bersih (tarif - keringanan blok terpilih)
         const rawJenis = rawJenisIuranList.find((j) => j.id === selectedJenisData.id);
-        const reliefPerMonth = rawJenis
-          ? Math.max(rawJenis.nominal - selectedJenisData.nominal, 0)
-          : 0;
-        setReliefTotal(reliefPerMonth * bulanBayar.length);
+        const baseNominal = rawJenis?.nominal || 0;
+        const reliefForMonth = (month: string) =>
+          keringananMap[`${selectedJenisData.id}:${month.split("-")[0]}`] || 0;
+        const totalRelief = bulanBayar.reduce(
+          (sum, month) => sum + reliefForMonth(month),
+          0
+        );
+        setReliefTotal(totalRelief);
 
-        // Jika rumah is_double, tarif per bulan dikali 2
         const total = bulanBayar.reduce(
-          (sum) => sum + (isDouble ? selectedJenisData.nominal * 2 : selectedJenisData.nominal),
+          (sum, month) =>
+            sum + baseNominal * (isDouble ? 2 : 1) - reliefForMonth(month),
           0
         );
 
