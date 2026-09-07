@@ -22,13 +22,12 @@ export default function ProfilePage() {
 
   // Profile data
   const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [pasangan, setPasangan] = useState("");
   const [blokRumah, setBlokRumah] = useState("");
-  const [statusKepemilikan, setStatusKepemilikan] = useState("milik_sendiri");
-  const [tanggalSelesaiKontrak, setTanggalSelesaiKontrak] = useState("");
-  const [role, setRole] = useState("warga");
-  const [currentEmail, setCurrentEmail] = useState("");
+  const [status, setStatus] = useState(userProfile.status_kepemarikan || "milik_sendiri");
+  const [tanggalSelesaiKontrak, setTanggalSelesaiKontrak] = useState(userProfile.tanggal_selesai_kontrak || "");
 
   // Email change
   const [newEmail, setNewEmail] = useState("");
@@ -50,12 +49,12 @@ export default function ProfilePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      setCurrentEmail(user.email || "");
+      setEmail(user.email || "");
       setNewEmail(user.email || "");
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("full_name, phone, pasangan, blok_rumah, status_kepemilikan, tanggal_selesai_kontrak, role, email")
+        .select("full_name, phone, pasangan, blok_rumah, status_kepemikahan, tanggal_selesai_kontrak, role, email")
         .eq("id", user.id)
         .single();
 
@@ -68,7 +67,7 @@ export default function ProfilePage() {
         setPhone(profile.phone || "");
         setPasangan(profile.pasangan || "");
         setBlokRumah(profile.blok_rumah || "");
-        setStatusKepemilikan(profile.status_kepemilikan || "milik_sendiri");
+        setStatus(profile.status_kepemikahan || "milik_sendiri");
         setTanggalSelesaiKontrak(profile.tanggal_selesai_kontrak || "");
         setRole(profile.role || "warga");
       }
@@ -89,6 +88,13 @@ export default function ProfilePage() {
       return;
     }
 
+    // Validasi tambahan: menolak jika status "kontrak" tapi tanggal belum diisi
+    if (status === "kontrak" && !tanggalSelesaiKontrak) {
+      setProfileMsg({ type: "error", text: "Tanggal selesai kontrak wajib diisi untuk status property 'kontrak'." });
+      setSaving(false);
+      return;
+    }
+
     const { error } = await supabase
       .from("profiles")
       .update({
@@ -96,8 +102,8 @@ export default function ProfilePage() {
         phone: phone.trim(),
         pasangan: pasangan.trim() || null,
         blok_rumah: blokRumah.trim(),
-        status_kepemilikan: statusKepemilikan,
-        tanggal_selesai_kontrak: statusKepemilikan === "kontrak" ? (tanggalSelesaiKontrak || null) : null,
+        status_kepemikahan: status,
+        tanggal_selesai_kontrak: status === "kontrak" ? (tanggalSelesaiKontrak || null) : null,
         email: currentEmail,
         updated_at: new Date().toISOString(),
       })
@@ -227,11 +233,11 @@ export default function ProfilePage() {
 
           {/* Status Kepemilikan */}
           <div className="space-y-2">
-            <Label htmlFor="status_kepemilikan">Status Kepemilikan Rumah</Label>
+            <Label htmlFor="status_kepemikahan">Status Kepemilikan Rumah</Label>
             <select
-              id="status_kepemilikan"
-              value={statusKepemilikan}
-              onChange={(e) => setStatusKepemilikan(e.target.value)}
+              id="status_kepemikahan"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="milik_sendiri">Milik Sendiri</option>
@@ -240,7 +246,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Tanggal Selesai Kontrak (hanya untuk kontrak) */}
-          {statusKepemilikan === "kontrak" && (
+          {status === "kontrak" && (
             <div className="space-y-2">
               <Label htmlFor="tanggal_selesai_kontrak">Tanggal Selesai Kontrak</Label>
               <Input

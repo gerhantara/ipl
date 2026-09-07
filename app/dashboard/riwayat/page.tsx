@@ -14,8 +14,9 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, Eye, Pencil, Trash } from "lucide-react";
+import { Check, Download, Eye, Pencil, Trash } from "lucide-react";
 import EditPaymentDialog from "@/components/edit-payment-dialog";
+import { jsPDF } from "jspdf";
 
 interface Pembayaran {
   id: string;
@@ -130,6 +131,55 @@ export default function RiwayatPage() {
     }).join(", ");
   };
 
+  const handleDownloadReceipt = (p: Pembayaran) => {
+    if (p.status !== "verified") return;
+
+    const document = new jsPDF();
+    const leftMargin = 20;
+    let yPosition = 25;
+    const addLine = (label: string, value: string) => {
+      document.setFont("helvetica", "bold");
+      document.text(label, leftMargin, yPosition);
+      document.setFont("helvetica", "normal");
+      document.text(value, leftMargin + 45, yPosition);
+      yPosition += 10;
+    };
+
+    document.setFontSize(18);
+    document.setFont("helvetica", "bold");
+    document.text("KUITANSI PEMBAYARAN IPL", leftMargin, yPosition);
+    yPosition += 8;
+    document.setFontSize(10);
+    document.setFont("helvetica", "normal");
+    document.text("Dokumen pembayaran resmi", leftMargin, yPosition);
+    yPosition += 18;
+
+    addLine("ID Pembayaran", p.id);
+    addLine("Nama", p.profiles?.full_name || "-");
+    addLine("Blok Rumah", p.profiles?.blok_rumah || "-");
+    addLine("Tanggal Bayar", new Date(p.tanggal_bayar).toLocaleDateString("id-ID"));
+    addLine("Jenis Iuran", p.jenis_iuran?.nama || "-");
+    addLine("Periode", formatBulan(p.bulan_bayar));
+    addLine("Nominal", formatCurrency(p.nominal));
+    addLine(
+      "Rekening",
+      p.rekening ? `${p.rekening.nama_bank} - ${p.rekening.nomor_rekening}` : "-"
+    );
+    addLine("Status", "Terverifikasi oleh admin");
+
+    yPosition += 12;
+    document.setFontSize(9);
+    document.setTextColor(100);
+    document.text(
+      `Dicetak pada ${new Date().toLocaleString("id-ID")}`,
+      leftMargin,
+      yPosition
+    );
+
+    const safeId = p.id.replace(/[^a-zA-Z0-9-_]/g, "-");
+    document.save(`kuitansi-pembayaran-${safeId}.pdf`);
+  };
+
   const getStatusBadge = (status: string) => {
     if (status === "verified") return <Badge className="bg-green-600">Terverifikasi</Badge>;
     if (status === "pending") return <Badge className="bg-yellow-500">Pending</Badge>;
@@ -186,6 +236,7 @@ export default function RiwayatPage() {
                     <TableHead className="text-right">Nominal</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-center">Bukti</TableHead>
+                      <TableHead className="text-center">Kuitansi</TableHead>
                       {userRole === "admin" && (
                         <TableHead className="text-center">Aksi</TableHead>
                       )}
@@ -237,6 +288,19 @@ export default function RiwayatPage() {
                               )}
                             </DialogContent>
                           </Dialog>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {p.status === "verified" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDownloadReceipt(p)}
+                            title="Download kuitansi PDF"
+                            aria-label="Download kuitansi PDF"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
                         )}
                       </TableCell>
                       {userRole === "admin" && (

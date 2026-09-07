@@ -41,6 +41,13 @@ export default function RegisterPage() {
       return;
     }
 
+    // Validates new requirement: rejected if status is "kontrak" but tanggal_selesai_kontrak is empty
+    if (statusKepemilikan === "kontrak" && !tanggalSelesaiKontrak) {
+      setError("Tanggal selesai kontrak wajib diisi untuk status properti 'kontrak'.");
+      setLoading(false);
+      return;
+    }
+
     // Tolak pendaftaran jika blok sudah terdaftar oleh pemilik lain
     // (catatan: is_double hanya penanda blok milik pemilik yang sama, bukan izin 2 pemilik)
     const { count, error: countError } = await supabase
