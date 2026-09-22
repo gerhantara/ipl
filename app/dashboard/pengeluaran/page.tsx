@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableHead, useSortedData, SortState } from "@/components/ui/sortable-head";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,12 @@ const KATEGORI_OPTIONS = ["Sampah", "Keamanan", "Perbaikan", "Kebersihan", "Lain
 export default function PengeluaranPage() {
   const supabase = createClient();
   const [pengeluaranList, setPengeluaranList] = useState<Pengeluaran[]>([]);
+  const [sortState, setSortState] = useState<SortState>({ col: null, dir: null });
+
+  const sortedPengeluaran = useMemo(
+    () => useSortedData(pengeluaranList, { sortCol: sortState.col, sortDir: sortState.dir, onSort: () => {} }),
+    [pengeluaranList, sortState]
+  );
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -194,21 +201,21 @@ export default function PengeluaranPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {pengeluaranList.length === 0 ? (
+          {sortedPengeluaran.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">Belum ada pengeluaran.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Keterangan</TableHead>
-                  <TableHead className="text-right">Nominal</TableHead>
+                  <SortableHead sortKey="tanggal" sortState={sortState} setSortState={setSortState}>Tanggal</SortableHead>
+                  <SortableHead sortKey="kategori" sortState={sortState} setSortState={setSortState}>Kategori</SortableHead>
+                  <SortableHead sortKey="keterangan" sortState={sortState} setSortState={setSortState}>Keterangan</SortableHead>
+                  <SortableHead sortKey="nominal" sortState={sortState} setSortState={setSortState} align="right">Nominal</SortableHead>
                   <TableHead className="text-center">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pengeluaranList.map((p) => (
+                {sortedPengeluaran.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>{new Date(p.tanggal).toLocaleDateString("id-ID")}</TableCell>
                     <TableCell className="font-medium">{p.kategori}</TableCell>

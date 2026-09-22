@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableHead, useSortedData, SortState } from "@/components/ui/sortable-head";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 
 interface JenisIuran {
   id: string;
@@ -38,6 +39,12 @@ interface JenisIuran {
 export default function JenisIuranPage() {
   const supabase = createClient();
   const [list, setList] = useState<JenisIuran[]>([]);
+  const [sortState, setSortState] = useState<SortState>({ col: null, dir: null });
+
+  const sorted = useMemo(
+    () => useSortedData(list, { sortCol: sortState.col, sortDir: sortState.dir, onSort: () => {} }),
+    [list, sortState]
+  );
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -190,22 +197,22 @@ export default function JenisIuranPage() {
       <Card>
         <CardHeader><CardTitle>Daftar Jenis Iuran</CardTitle></CardHeader>
         <CardContent>
-          {list.length === 0 ? (
+          {sorted.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">Belum ada jenis iuran.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Deskripsi</TableHead>
-                  <TableHead className="text-right">Nominal</TableHead>
-                  <TableHead>Jenis</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableHead sortKey="nama" sortState={sortState} setSortState={setSortState}>Nama</SortableHead>
+                  <SortableHead sortKey="deskripsi" sortState={sortState} setSortState={setSortState}>Deskripsi</SortableHead>
+                  <SortableHead sortKey="nominal" sortState={sortState} setSortState={setSortState} align="right">Nominal</SortableHead>
+                  <SortableHead sortKey="jenis" sortState={sortState} setSortState={setSortState}>Jenis</SortableHead>
+                  <SortableHead sortKey="aktif" sortState={sortState} setSortState={setSortState}>Status</SortableHead>
                   <TableHead className="text-center">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {list.map((item) => (
+                {sorted.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.nama}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{item.deskripsi || "-"}</TableCell>

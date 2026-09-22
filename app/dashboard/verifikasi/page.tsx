@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableHead, useSortedData, SortState } from "@/components/ui/sortable-head";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +24,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Eye, X, Pencil } from "lucide-react";
+import { Eye, Search, X, Pencil, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import EditPaymentDialog from "@/components/edit-payment-dialog";
 
 interface Pembayaran {
@@ -40,8 +42,29 @@ interface Pembayaran {
 
 export default function VerifikasiPage() {
   const supabase = createClient();
+  const [sortState, setSortState] = useState<SortState>({ col: null, dir: null });
   const [pembayaranList, setPembayaranList] = useState<Pembayaran[]>([]);
   const [rejectedList, setRejectedList] = useState<Pembayaran[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
+  const [searching, setSearching] = useState(false);
+  const requestSeq = useRef(0);
+
+  const formatBulan = (bulanArr: string[]) =>
+    bulanArr.map((b) => {
+      const [year, month] = b.split("-");
+      return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString("id-ID", { month: "short", year: "numeric" });
+    }).join(", ");
+
+  const sortedAktif = useMemo(
+    () => useSortedData(pembayaranList, { sortCol: sortState.col, sortDir: sortState.dir, onSort: () => {} }),
+    [pembayaranList, sortState]
+  );
+
+  const sortedDibatalkan = useMemo(
+    () => useSortedData(rejectedList, { sortCol: sortState.col, sortDir: sortState.dir, onSort: () => {} }),
+    [rejectedList, sortState]
+  );
   const [loading, setLoading] = useState(true);
   const [selectedPembayaran, setSelectedPembayaran] = useState<Pembayaran | null>(null);
   const [catatan, setCatatan] = useState("");
@@ -49,49 +72,38 @@ export default function VerifikasiPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
-  const fetchData = async () => {
-    // Ambil pembayaran verified (aktif)
-    const { data: verified } = await supabase
-      .from("pembayaran")
-      .select(`
-        id, tanggal_bayar, bulan_bayar, nominal, status, bukti_transfer_url, catatan,
-        profiles!user_id (full_name, blok_rumah),
-        jenis_iuran (nama),
-        rekening (nama_bank, nomor_rekening)
-      `)
-      .eq("status", "verified")
-      .order("created_at", { ascending: false });
+  const fetchData = async (q: string) => {
+    const seq = ++requestSeq.current;
+    setSearching(true);
 
-    // Ambil pembayaran rejected (dibatalkan)
-    const { data: rejected } = await supabase
-      .from("pembayaran")
-      .select(`
-        id, tanggal_bayar, bulan_bayar, nominal, status, bukti_transfer_url, catatan,
-        profiles!user_id (full_name, blok_rumah),
-        jenis_iuran (nama),
-        rekening (nama_bank, nomor_rekening)
-      `)
-      .eq("status", "rejected")
-      .order("created_at", { ascending: false });
+    const { data, error } = await supabase.rpc("search_pembayaran", {
+      p_q: q.trim() || null,
+      p_status: ["verified", "rejected"],
+      p_user_id: null,
+    });
 
-    if (verified) setPembayaranList(verified as unknown as Pembayaran[]);
-    if (rejected) setRejectedList(rejected as unknown as Pembayaran[]);
+    // Abaikan respons yang datang terlambat
+    if (seq !== requestSeq.current) return;
+
+    if (error) {
+      console.error("Error fetching pembayaran:", error);
+    } else if (data) {
+      const rows = data as unknown as Pembayaran[];
+      setPembayaranList(rows.filter((r) => r.status === "verified"));
+      setRejectedList(rows.filter((r) => r.status === "rejected"));
+    }
+
+    setSearching(false);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(debouncedQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [debouncedQuery]);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
-
-  const formatBulan = (bulanArr: string[]) =>
-    bulanArr.map((b) => {
-      const [year, month] = b.split("-");
-      return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString("id-ID", { month: "short", year: "numeric" });
-    }).join(", ");
 
   const handleReject = async (pembayaran: Pembayaran) => {
     setActionLoading(true);
@@ -105,7 +117,7 @@ export default function VerifikasiPage() {
     setSelectedPembayaran(null);
     setCatatan("");
     setActionLoading(false);
-    fetchData();
+    fetchData(debouncedQuery);
   };
 
   const handleRestore = async (pembayaran: Pembayaran) => {
@@ -115,7 +127,7 @@ export default function VerifikasiPage() {
       catatan: null,
     }).eq("id", pembayaran.id);
     setActionLoading(false);
-    fetchData();
+    fetchData(debouncedQuery);
   };
 
   if (loading) return <div className="flex items-center justify-center min-h-[400px]"><p>Memuat data...</p></div>;
@@ -127,29 +139,46 @@ export default function VerifikasiPage() {
         <p className="text-muted-foreground">Batalkan pembayaran yang salah/bukti tidak sesuai</p>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          placeholder="Cari nama, blok, jenis iuran, atau bulan..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {searching && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            Mencari...
+          </span>
+        )}
+      </div>
+
       {/* Pembayaran Aktif */}
       <Card>
         <CardHeader>
-          <CardTitle>Pembayaran Aktif ({pembayaranList.length})</CardTitle>
+          <CardTitle>Pembayaran Aktif ({sortedAktif.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {pembayaranList.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Tidak ada pembayaran aktif.</p>
+          {sortedAktif.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              {pembayaranList.length === 0 ? "Tidak ada pembayaran aktif." : "Tidak ada hasil yang cocok."}
+            </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Warga</TableHead>
-                  <TableHead>Blok Rumah</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Jenis Iuran</TableHead>
-                  <TableHead>Bulan</TableHead>
-                  <TableHead className="text-right">Nominal</TableHead>
+                  <SortableHead sortKey="full_name" sortState={sortState} setSortState={setSortState}>Warga</SortableHead>
+                  <SortableHead sortKey="blok_rumah" sortState={sortState} setSortState={setSortState}>Blok Rumah</SortableHead>
+                  <SortableHead sortKey="tanggal_bayar" sortState={sortState} setSortState={setSortState}>Tanggal</SortableHead>
+                  <SortableHead sortKey="jenis_iuran" sortState={sortState} setSortState={setSortState}>Jenis Iuran</SortableHead>
+                  <SortableHead sortKey="bulan_bayar" sortState={sortState} setSortState={setSortState}>Bulan</SortableHead>
+                  <SortableHead sortKey="nominal" sortState={sortState} setSortState={setSortState} align="right">Nominal</SortableHead>
                   <TableHead className="text-center">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pembayaranList.map((p) => (
+                {sortedAktif.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>
                       <p className="font-medium">{p.profiles?.full_name || "-"}</p>
@@ -180,26 +209,26 @@ export default function VerifikasiPage() {
       </Card>
 
       {/* Pembayaran Dibatalkan */}
-      {rejectedList.length > 0 && (
+      {sortedDibatalkan.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Dibatalkan ({rejectedList.length})</CardTitle>
+            <CardTitle>Dibatalkan ({sortedDibatalkan.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Warga</TableHead>
-                  <TableHead>Blok Rumah</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Jenis Iuran</TableHead>
-                  <TableHead className="text-right">Nominal</TableHead>
-                  <TableHead>Catatan</TableHead>
+                  <SortableHead sortKey="full_name" sortState={sortState} setSortState={setSortState}>Warga</SortableHead>
+                  <SortableHead sortKey="blok_rumah" sortState={sortState} setSortState={setSortState}>Blok Rumah</SortableHead>
+                  <SortableHead sortKey="tanggal_bayar" sortState={sortState} setSortState={setSortState}>Tanggal</SortableHead>
+                  <SortableHead sortKey="jenis_iuran" sortState={sortState} setSortState={setSortState}>Jenis Iuran</SortableHead>
+                  <SortableHead sortKey="nominal" sortState={sortState} setSortState={setSortState} align="right">Nominal</SortableHead>
+                  <SortableHead sortKey="catatan" sortState={sortState} setSortState={setSortState}>Catatan</SortableHead>
                   <TableHead className="text-center">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rejectedList.map((p) => (
+                {sortedDibatalkan.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>
                       <p className="font-medium">{p.profiles?.full_name || "-"}</p>
@@ -280,7 +309,7 @@ export default function VerifikasiPage() {
         onOpenChange={setEditOpen}
         onSaved={() => {
           setEditId(null);
-          fetchData();
+          fetchData(debouncedQuery);
         }}
       />
     </div>

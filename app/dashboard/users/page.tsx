@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,8 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Plus, Pencil, KeyRound, UserX, UserCheck, Eye, EyeOff, AlertCircle, CheckCircle2, Search, Upload, FileDown, FileSpreadsheet, X, Check, AlertTriangle } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronsUpDown, Users, Plus, Pencil, KeyRound, UserX, UserCheck, Eye, EyeOff, AlertCircle, CheckCircle2, Search, Upload, FileDown, FileSpreadsheet, X, Check, AlertTriangle } from "lucide-react";
 import { BLOK_RUMAH_OPTIONS } from "@/lib/blok-rumah-options";
+import { SortableHead, useSortedData, SortState } from "@/components/ui/sortable-head";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface UserProfile {
@@ -70,6 +71,7 @@ function sortRumahBlocks(blocks: RumahBlok[]): RumahBlok[] {
 
 export default function UsersPage() {
   const supabase = createClient();
+  const [sortState, setSortState] = useState<SortState>({ col: null, dir: null });
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -462,14 +464,28 @@ export default function UsersPage() {
     URL.revokeObjectURL(link.href);
   };
 
-  const filteredUsers = users.filter((user) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      user.email.toLowerCase().includes(query) ||
-      (user.full_name?.toLowerCase().includes(query)) ||
-      (user.blok_rumah?.toLowerCase().includes(query))
-    );
-  });
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) => {
+        const query = searchQuery.toLowerCase();
+        return (
+          user.email.toLowerCase().includes(query) ||
+          (user.full_name?.toLowerCase().includes(query)) ||
+          (user.blok_rumah?.toLowerCase().includes(query))
+        );
+      }),
+    [users, searchQuery]
+  );
+
+  const sortedUsers = useMemo(
+    () =>
+      useSortedData(filteredUsers, {
+        sortCol: sortState.col,
+        sortDir: sortState.dir,
+        onSort: () => {},
+      }),
+    [filteredUsers, sortState]
+  );
 
   if (loading) {
     return (
@@ -513,7 +529,7 @@ export default function UsersPage() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Daftar User ({filteredUsers.length})</CardTitle>
+          <CardTitle>Daftar User ({sortedUsers.length})</CardTitle>
           <CardDescription>Semua user terdaftar dalam sistem</CardDescription>
         </CardHeader>
         <CardContent>
@@ -525,18 +541,18 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Blok Rumah</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Telepon</TableHead>
-                  <TableHead>Status Akun</TableHead>
-                  <TableHead>Role</TableHead>
+                  <SortableHead sortKey="full_name" sortState={sortState} setSortState={setSortState}>Nama</SortableHead>
+                  <SortableHead sortKey="email" sortState={sortState} setSortState={setSortState}>Email</SortableHead>
+                  <SortableHead sortKey="blok_rumah" sortState={sortState} setSortState={setSortState}>Blok Rumah</SortableHead>
+                  <SortableHead sortKey="status_kepemilikan" sortState={sortState} setSortState={setSortState}>Status</SortableHead>
+                  <SortableHead sortKey="phone" sortState={sortState} setSortState={setSortState}>Telepon</SortableHead>
+                  <SortableHead sortKey="is_active" sortState={sortState} setSortState={setSortState}>Status Akun</SortableHead>
+                  <SortableHead sortKey="role" sortState={sortState} setSortState={setSortState}>Role</SortableHead>
                   <TableHead className="text-center">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
+                {sortedUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.full_name || "-"}</TableCell>
                     <TableCell>{user.email}</TableCell>

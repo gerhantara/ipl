@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableHead, useSortedData, SortState } from "@/components/ui/sortable-head";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +24,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Building2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 
 interface Rekening {
   id: string;
@@ -36,6 +37,12 @@ interface Rekening {
 export default function RekeningPage() {
   const supabase = createClient();
   const [list, setList] = useState<Rekening[]>([]);
+  const [sortState, setSortState] = useState<SortState>({ col: null, dir: null });
+
+  const sorted = useMemo(
+    () => useSortedData(list, { sortCol: sortState.col, sortDir: sortState.dir, onSort: () => {} }),
+    [list, sortState]
+  );
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -164,21 +171,21 @@ export default function RekeningPage() {
       <Card>
         <CardHeader><CardTitle>Daftar Rekening</CardTitle></CardHeader>
         <CardContent>
-          {list.length === 0 ? (
+          {sorted.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">Belum ada rekening.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Bank</TableHead>
-                  <TableHead>Nomor Rekening</TableHead>
-                  <TableHead>Atas Nama</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableHead sortKey="nama_bank" sortState={sortState} setSortState={setSortState}>Bank</SortableHead>
+                  <SortableHead sortKey="nomor_rekening" sortState={sortState} setSortState={setSortState}>Nomor Rekening</SortableHead>
+                  <SortableHead sortKey="atas_nama" sortState={sortState} setSortState={setSortState}>Atas Nama</SortableHead>
+                  <SortableHead sortKey="aktif" sortState={sortState} setSortState={setSortState}>Status</SortableHead>
                   <TableHead className="text-center">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {list.map((item) => (
+                {sorted.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">

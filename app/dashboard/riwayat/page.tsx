@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,9 +13,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableHead, useSortedData, SortState } from "@/components/ui/sortable-head";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, Download, Eye, Pencil, Trash } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Check, Download, Eye, Pencil, Search, Trash } from "lucide-react";
 import EditPaymentDialog from "@/components/edit-payment-dialog";
 import { jsPDF } from "jspdf";
 
@@ -33,7 +36,25 @@ interface Pembayaran {
 
 export default function RiwayatPage() {
   const supabase = createClient();
+  const [sortState, setSortState] = useState<SortState>({ col: null, dir: null });
   const [pembayaranList, setPembayaranList] = useState<Pembayaran[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
+  const [searching, setSearching] = useState(false);
+  const requestSeq = useRef(0);
+
+  const formatBulan = (bulanArr: string[]) => {
+    return bulanArr.map((b) => {
+      const [year, month] = b.split("-");
+      const date = new Date(Number(year), Number(month) - 1, 1);
+      return date.toLocaleDateString("id-ID", { month: "short", year: "numeric" });
+    }).join(", ");
+  };
+
+  const sortedPembayaran = useMemo(
+    () => useSortedData(pembayaranList, { sortCol: sortState.col, sortDir: sortState.dir, onSort: () => {} }),
+    [pembayaranList, sortState]
+  );
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>("warga");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -41,9 +62,16 @@ export default function RiwayatPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = async (q: string) => {
+    const seq = ++requestSeq.current;
+    setSearching(true);
+
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setSearching(false);
+      setLoading(false);
+      return;
+    }
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -53,41 +81,31 @@ export default function RiwayatPage() {
 
     if (profile) setUserRole(profile.role);
 
-    let query = supabase
-      .from("pembayaran")
-      .select(`
-        id,
-        tanggal_bayar,
-        bulan_bayar,
-        nominal,
-        status,
-        bukti_transfer_url,
-        catatan,
-        profiles!user_id (full_name, blok_rumah),
-        jenis_iuran (nama),
-        rekening (nama_bank, nomor_rekening)
-      `)
-      .order("created_at", { ascending: false });
+    const { data, error } = await supabase.rpc("search_pembayaran", {
+      p_q: q.trim() || null,
+      p_status: null,
+      p_user_id: profile?.role === "admin" ? null : user.id,
+    });
 
-    if (profile?.role !== "admin") {
-      query = query.eq("user_id", user.id);
-    }
-
-    const { data, error } = await query;
+    // Abaikan respons yang datang terlambat (pencarian lebih baru sudah dikirim)
+    if (seq !== requestSeq.current) return;
 
     if (error) {
       console.error("Error fetching pembayaran:", error);
       setErrorMsg(error.message);
+    } else {
+      setErrorMsg(null);
     }
 
     if (data) setPembayaranList(data as unknown as Pembayaran[]);
+    setSearching(false);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(debouncedQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase]);
+  }, [debouncedQuery]);
 
   const handleVerifikasi = async (p: Pembayaran) => {
     if (!confirm("Verifikasi pembayaran ini?")) return;
@@ -103,7 +121,7 @@ export default function RiwayatPage() {
       .eq("id", p.id);
     if (error) setErrorMsg(error.message);
     setActionLoading(null);
-    fetchData();
+    fetchData(debouncedQuery);
   };
 
   const handleHapus = async (p: Pembayaran) => {
@@ -112,7 +130,7 @@ export default function RiwayatPage() {
     const { error } = await supabase.from("pembayaran").delete().eq("id", p.id);
     if (error) setErrorMsg(error.message);
     setActionLoading(null);
-    fetchData();
+    fetchData(debouncedQuery);
   };
 
   const formatCurrency = (amount: number) => {
@@ -121,14 +139,6 @@ export default function RiwayatPage() {
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(amount);
-  };
-
-  const formatBulan = (bulanArr: string[]) => {
-    return bulanArr.map((b) => {
-      const [year, month] = b.split("-");
-      const date = new Date(Number(year), Number(month) - 1, 1);
-      return date.toLocaleDateString("id-ID", { month: "short", year: "numeric" });
-    }).join(", ");
   };
 
   const handleDownloadReceipt = (p: Pembayaran) => {
@@ -210,14 +220,31 @@ export default function RiwayatPage() {
         </div>
       )}
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          placeholder="Cari nama, blok, jenis iuran, atau bulan..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {searching && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            Mencari...
+          </span>
+        )}
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Daftar Pembayaran ({pembayaranList.length})</CardTitle>
+          <CardTitle>Daftar Pembayaran ({sortedPembayaran.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {pembayaranList.length === 0 ? (
+          {sortedPembayaran.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              Belum ada riwayat pembayaran.
+              {pembayaranList.length === 0
+                ? "Belum ada riwayat pembayaran."
+                : "Tidak ada hasil yang cocok."}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -226,15 +253,15 @@ export default function RiwayatPage() {
                   <TableRow>
                     {userRole === "admin" && (
                       <>
-                        <TableHead>Warga</TableHead>
-                        <TableHead>Blok Rumah</TableHead>
+                        <SortableHead sortKey="full_name" sortState={sortState} setSortState={setSortState}>Warga</SortableHead>
+                        <SortableHead sortKey="blok_rumah" sortState={sortState} setSortState={setSortState}>Blok Rumah</SortableHead>
                       </>
                     )}
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Jenis Iuran</TableHead>
-                    <TableHead>Bulan</TableHead>
-                    <TableHead className="text-right">Nominal</TableHead>
-                      <TableHead>Status</TableHead>
+                    <SortableHead sortKey="tanggal_bayar" sortState={sortState} setSortState={setSortState}>Tanggal</SortableHead>
+                    <SortableHead sortKey="jenis_iuran" sortState={sortState} setSortState={setSortState}>Jenis Iuran</SortableHead>
+                    <SortableHead sortKey="bulan_bayar" sortState={sortState} setSortState={setSortState}>Bulan</SortableHead>
+                    <SortableHead sortKey="nominal" sortState={sortState} setSortState={setSortState} align="right">Nominal</SortableHead>
+                      <SortableHead sortKey="status" sortState={sortState} setSortState={setSortState}>Status</SortableHead>
                       <TableHead className="text-center">Bukti</TableHead>
                       <TableHead className="text-center">Kuitansi</TableHead>
                       {userRole === "admin" && (
@@ -243,7 +270,7 @@ export default function RiwayatPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pembayaranList.map((p) => (
+                    {sortedPembayaran.map((p) => (
                       <TableRow key={p.id}>
                       {userRole === "admin" && (
                         <>
@@ -354,7 +381,7 @@ export default function RiwayatPage() {
         onOpenChange={setEditOpen}
         onSaved={() => {
           setEditId(null);
-          fetchData();
+          fetchData(debouncedQuery);
         }}
       />
     </div>

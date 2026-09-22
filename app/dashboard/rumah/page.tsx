@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableHead, useSortedData, SortState } from "@/components/ui/sortable-head";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,7 @@ interface Rumah {
 export default function RumahPage() {
   const supabase = createClient();
   const [list, setList] = useState<Rumah[]>([]);
+  const [sortState, setSortState] = useState<SortState>({ col: null, dir: null });
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -199,15 +201,23 @@ export default function RumahPage() {
     return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
   };
 
-  const filteredList = list.filter((item) => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      item.blok_rumah.toLowerCase().includes(q) ||
-      (item.nama_pemilik || "").toLowerCase().includes(q) ||
-      (item.nama_pasangan || "").toLowerCase().includes(q)
-    );
-  });
+  const filteredList = useMemo(
+    () => list.filter((item) => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        item.blok_rumah.toLowerCase().includes(q) ||
+        (item.nama_pemilik || "").toLowerCase().includes(q) ||
+        (item.nama_pasangan || "").toLowerCase().includes(q)
+      );
+    }),
+    [list, searchQuery]
+  );
+
+  const sortedRumah = useMemo(
+    () => useSortedData(filteredList, { sortCol: sortState.col, sortDir: sortState.dir, onSort: () => {} }),
+    [filteredList, sortState]
+  );
 
   if (loading) {
     return (
@@ -365,11 +375,11 @@ export default function RumahPage() {
         <CardHeader>
           <CardTitle>Daftar Rumah</CardTitle>
           <CardDescription>
-            {filteredList.length} dari {list.length} data rumah
+            {sortedRumah.length} dari {list.length} data rumah
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredList.length === 0 ? (
+          {sortedRumah.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               {list.length === 0 ? "Belum ada data rumah." : "Tidak ada hasil yang cocok."}
             </p>
@@ -377,16 +387,16 @@ export default function RumahPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Blok Rumah</TableHead>
-                  <TableHead>Nama Pemilik</TableHead>
-                  <TableHead>Periode</TableHead>
-                  <TableHead>Tipe</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableHead sortKey="blok_rumah" sortState={sortState} setSortState={setSortState}>Blok Rumah</SortableHead>
+                  <SortableHead sortKey="nama_pemilik" sortState={sortState} setSortState={setSortState}>Nama Pemilik</SortableHead>
+                  <SortableHead sortKey="tanggal_mulai" sortState={sortState} setSortState={setSortState}>Periode</SortableHead>
+                  <SortableHead sortKey="is_double" sortState={sortState} setSortState={setSortState}>Tipe</SortableHead>
+                  <SortableHead sortKey="is_aktif" sortState={sortState} setSortState={setSortState}>Status</SortableHead>
                   <TableHead className="text-center">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredList.map((item) => (
+                {sortedRumah.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
