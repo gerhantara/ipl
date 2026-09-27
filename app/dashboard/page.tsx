@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableHead, SortState } from "@/components/ui/sortable-head";
 
 // Rekap pembayaran hanya untuk jenis iuran IPL Bulanan
 const IPL_JENIS_IURAN_ID = "a327f3bf-b645-4064-a26b-808bb0976826";
@@ -79,6 +80,7 @@ export default function DashboardPage() {
   // Payment matrix state
   const [last12Months, setLast12Months] = useState<{ key: string; label: string }[]>([]);
   const [wargaPayments, setWargaPayments] = useState<WargaPaymentRow[]>([]);
+  const [paymentSort, setPaymentSort] = useState<SortState>({ col: null, dir: null });
 
   // Monitoring per jenis iuran state (admin)
   const [jenisIuranMonitoring, setJenisIuranMonitoring] = useState<JenisIuranMonitorRow[]>([]);
@@ -317,6 +319,26 @@ export default function DashboardPage() {
     }).format(amount);
   };
 
+  const sortedWargaPayments = useMemo(() => {
+    if (paymentSort.col !== "blok_rumah" || !paymentSort.dir) {
+      return wargaPayments;
+    }
+
+    return [...wargaPayments].sort((a, b) => {
+      const blokComparison = (a.blok_rumah || "").localeCompare(
+        b.blok_rumah || "",
+        "id",
+        { numeric: true, sensitivity: "base" }
+      );
+
+      if (blokComparison !== 0) {
+        return paymentSort.dir === "asc" ? blokComparison : -blokComparison;
+      }
+
+      return a.paidCount - b.paidCount;
+    });
+  }, [paymentSort, wargaPayments]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -519,7 +541,7 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle>Status Pembayaran Warga</CardTitle>
           <CardDescription>
-            Rekap pembayaran IPL tahun 2026 (diurutkan dari yang paling sedikit membayar)
+            Rekap pembayaran IPL tahun 2026 (warga yang paling sedikit membayar ditampilkan lebih dulu)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -533,7 +555,14 @@ export default function DashboardPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="sticky left-0 bg-background z-10 min-w-[180px]">Nama Warga</TableHead>
-                    <TableHead className="text-center">Blok</TableHead>
+                    <SortableHead
+                      sortKey="blok_rumah"
+                      sortState={paymentSort}
+                      setSortState={setPaymentSort}
+                      align="center"
+                    >
+                      Blok
+                    </SortableHead>
                     {last12Months.map((month) => (
                       <TableHead key={month.key} className="text-center min-w-[70px]">
                         {month.label}
@@ -543,7 +572,7 @@ export default function DashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {wargaPayments.map((warga) => {
+                  {sortedWargaPayments.map((warga) => {
                     const paidSet = new Set(warga.paidMonths);
                     return (
                       <TableRow key={warga.id}>
