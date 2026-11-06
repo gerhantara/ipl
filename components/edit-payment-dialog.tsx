@@ -160,6 +160,12 @@ export default function EditPaymentDialog({
 
   const selectedJenisData = jenisIuranList.find((j) => j.id === selectedJenis);
 
+  // Jenis "wajib" bertarif 0 = iuran bertarif variabel (mis. Iuran Aspal):
+  // nominal diisi manual, bukan dihitung otomatis lalu dikunci readOnly.
+  const isNominalFixed = Boolean(
+    selectedJenisData && selectedJenisData.jenis === "wajib" && selectedJenisData.nominal > 0
+  );
+
   // Keringanan per bulan untuk jenis & tahun bulan pertama terpilih
   // (bulan tersedia hanya dalam 1 tahun, jadi nilainya konstan per bulan)
   const reliefPerMonth =
@@ -180,7 +186,7 @@ export default function EditPaymentDialog({
   };
 
   useEffect(() => {
-    if (selectedJenisData && bulanBayar.length > 0) {
+    if (isNominalFixed && selectedJenisData && bulanBayar.length > 0) {
       if (selectedJenisData.jenis === "wajib") {
         // Keringanan hanya berlaku untuk jenis iuran yang terpilih (via FK jenis_iuran_id),
         // dihitung per bulan berdasarkan tahun pada bulan tersebut.
@@ -204,7 +210,7 @@ export default function EditPaymentDialog({
     } else {
       setReliefTotal(0);
     }
-  }, [selectedJenisData, bulanBayar, keringananMap, isDouble]);
+  }, [selectedJenisData, bulanBayar, keringananMap, isDouble, isNominalFixed]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,10 +384,10 @@ export default function EditPaymentDialog({
                 type="number"
                 value={nominal}
                 onChange={(e) => setNominal(e.target.value)}
-                readOnly={selectedJenisData?.jenis === "wajib" && bulanBayar.length > 0}
+                readOnly={isNominalFixed && bulanBayar.length > 0}
                 placeholder="Masukkan nominal"
               />
-              {selectedJenisData?.jenis === "wajib" && bulanBayar.length > 0 && (
+              {isNominalFixed && selectedJenisData && bulanBayar.length > 0 && (
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>
                     Nominal otomatis dihitung: (Rp {selectedJenisData.nominal.toLocaleString("id-ID")}

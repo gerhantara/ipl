@@ -178,6 +178,14 @@ export default function BayarIPLPage() {
 
   const selectedJenisData = jenisIuranList.find((j) => j.id === selectedJenis);
 
+  // Jenis "wajib" bertarif 0 = iuran bertarif variabel (mis. Iuran Aspal):
+  // nominal diisi manual, bukan dihitung otomatis lalu dikunci readOnly.
+  const isNominalFixed = Boolean(
+    selectedJenisData &&
+      selectedJenisData.jenis === "wajib" &&
+      (rawJenisIuranList.find((j) => j.id === selectedJenisData.id)?.nominal ?? 0) > 0
+  );
+
   // Keringanan per bulan untuk jenis & tahun bulan pertama terpilih
   // (bulan tersedia hanya dalam 1 tahun, jadi nilainya konstan per bulan)
   const reliefPerMonth =
@@ -204,32 +212,28 @@ export default function BayarIPLPage() {
   };
 
   useEffect(() => {
-    if (selectedJenisData && bulanBayar.length > 0) {
-      if (selectedJenisData.jenis === "wajib") {
-        const rawJenis = rawJenisIuranList.find((j) => j.id === selectedJenisData.id);
-        const baseNominal = rawJenis?.nominal || 0;
-        const reliefForMonth = (month: string) =>
-          keringananMap[`${selectedJenisData.id}:${month.split("-")[0]}`] || 0;
-        const totalRelief = bulanBayar.reduce(
-          (sum, month) => sum + reliefForMonth(month),
-          0
-        );
-        setReliefTotal(totalRelief);
+    if (isNominalFixed && selectedJenisData && bulanBayar.length > 0) {
+      const rawJenis = rawJenisIuranList.find((j) => j.id === selectedJenisData.id);
+      const baseNominal = rawJenis?.nominal || 0;
+      const reliefForMonth = (month: string) =>
+        keringananMap[`${selectedJenisData.id}:${month.split("-")[0]}`] || 0;
+      const totalRelief = bulanBayar.reduce(
+        (sum, month) => sum + reliefForMonth(month),
+        0
+      );
+      setReliefTotal(totalRelief);
 
-        const total = bulanBayar.reduce(
-          (sum, month) =>
-            sum + baseNominal * (isDouble ? 2 : 1) - reliefForMonth(month),
-          0
-        );
+      const total = bulanBayar.reduce(
+        (sum, month) =>
+          sum + baseNominal * (isDouble ? 2 : 1) - reliefForMonth(month),
+        0
+      );
 
-        setNominal(String(total));
-      } else {
-        setReliefTotal(0);
-      }
+      setNominal(String(total));
     } else {
       setReliefTotal(0);
     }
-  }, [selectedJenisData, bulanBayar, isDouble, rawJenisIuranList]);
+  }, [isNominalFixed, selectedJenisData, bulanBayar, isDouble, rawJenisIuranList]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -567,10 +571,10 @@ export default function BayarIPLPage() {
                 type="number"
                 value={nominal}
                 onChange={(e) => setNominal(e.target.value)}
-                readOnly={selectedJenisData?.jenis === "wajib" && bulanBayar.length > 0}
+                readOnly={isNominalFixed && bulanBayar.length > 0}
                 placeholder="Masukkan nominal"
               />
-              {selectedJenisData?.jenis === "wajib" && bulanBayar.length > 0 && (
+              {isNominalFixed && selectedJenisData && bulanBayar.length > 0 && (
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>
                     Nominal otomatis dihitung: (Rp {selectedJenisData.nominal.toLocaleString("id-ID")}
